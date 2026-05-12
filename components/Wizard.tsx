@@ -37,7 +37,7 @@ const ACTION_COPY: Record<ActionName, { title: string; tone: string; verb: strin
 };
 
 const TECH_DEMO_DISCLAIMER =
-  "This is a technology demonstration, not a forecast. <br />Inputs are illustrative and are not intended to represent any specific cohort of buyers or time period. <br />Contact Supported Intelligence LLC for information on licensing the model for use with specific inputs.";
+  "This is a technology demonstration, not a forecast. Inputs are illustrative and are not intended to represent any specific cohort of buyers or time period. Contact Supported Intelligence LLC for information on licensing the model for use with specific inputs.";
 
 export function Wizard() {
   const template = VEHICLE_RETENTION_TEMPLATE;
@@ -230,9 +230,9 @@ function Header({ onSample, onReset }: { onSample: () => void; onReset: () => vo
           </p>
         </div>
       </div>
-      <div className="flex w-full shrink-0 flex-col items-end gap-2 lg:max-w-[min(100%,22rem)] xl:max-w-md">
+      <div className="flex w-full shrink-0 flex-col items-end gap-2 lg:max-w-2xl xl:max-w-3xl">
         <p
-          className="text-right text-[10px] leading-snug text-ink-500 sm:text-[11px]"
+          className="w-full text-right text-[10px] leading-snug text-ink-500 sm:text-[11px]"
           role="note"
         >
           {TECH_DEMO_DISCLAIMER}
