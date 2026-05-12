@@ -36,6 +36,9 @@ const ACTION_COPY: Record<ActionName, { title: string; tone: string; verb: strin
   reduce: { title: "Reduce", tone: "action-reduce", verb: "Cut back on miles to lower variable cost." },
 };
 
+const TECH_DEMO_DISCLAIMER =
+  "This is a technology demonstration, not a forecast. Inputs are illustrative and are not intended to represent any specific cohort of buyers or time period. Contact Supported Intelligence LLC for information on licensing the model for use with specific inputs.";
+
 export function Wizard() {
   const template = VEHICLE_RETENTION_TEMPLATE;
   const [answers, setAnswers] = useState<Answers>(seedDefaults(template.steps));
@@ -201,14 +204,14 @@ export function Wizard() {
 
 function Header({ onSample, onReset }: { onSample: () => void; onReset: () => void }) {
   return (
-    <div>
-      <div className="flex items-center gap-2 text-[12px] text-ink-500">
-        <Car className="h-3.5 w-3.5" />
-        <span className="text-ink-900 font-semibold">
-          ADOS 2026 v1c · Auto Drive-or-Sell™
-        </span>
-      </div>
-      <div className="mt-3 flex items-end justify-between flex-wrap gap-3">
+    <div className="mt-0 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+      <div className="min-w-0 flex-1 space-y-3">
+        <div className="flex items-center gap-2 text-[12px] text-ink-500">
+          <Car className="h-3.5 w-3.5 shrink-0" />
+          <span className="text-ink-900 font-semibold">
+            ADOS 2026 v1c · Auto Drive-or-Sell™
+          </span>
+        </div>
         <div>
           <span className="chip chip-coral">
             <Sparkles className="h-3 w-3" />
@@ -226,7 +229,15 @@ function Header({ onSample, onReset }: { onSample: () => void; onReset: () => vo
             action plus the full policy + value surface.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+      </div>
+      <div className="flex w-full shrink-0 flex-col items-end gap-2 lg:max-w-[min(100%,22rem)] xl:max-w-md">
+        <p
+          className="text-right text-[10px] leading-snug text-ink-500 sm:text-[11px]"
+          role="note"
+        >
+          {TECH_DEMO_DISCLAIMER}
+        </p>
+        <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
           <button onClick={onSample} className="btn-primary !py-2 !px-3 !text-[12px]">
             <Wand2 className="h-3.5 w-3.5" />
             Run sample answers
