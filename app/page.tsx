@@ -28,17 +28,18 @@ function Footer() {
       </p>
       <div>
         © 2015, 2017, 2018, 2021, 2026 Anderson Economic Group LLC. Auto
-        Drive-or-Sell™ decision model · ADOS 2026 v1c. Uses Rapid Recursive®
-        technology, multiple patents.
+        Drive-or-Sell™ decision model · ADOS 2026 v1c.
+      </div>
+      <div>
+        Rapid Recursive® technology, © 2026 Supported Intelligence LLC, patented
+        in US (9,798,700 and 10,460,249 and 10,546,248); Japan (6284472); and Korea
+        (10-2082522).
       </div>
       <div>
         Vectorized Python port with sparse Kronecker-product transitions and
         broadcast reward construction. Solves the default 880-state problem in
         ~300 ms on commodity hardware.
       </div>
-      <p className="text-ink-600 pt-1 border-t border-ink-200">
-        © 2026 Supported Intelligence LLC
-      </p>
     </footer>
   );
 }

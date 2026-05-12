@@ -84,7 +84,7 @@ The browser only talks to **`/api/vehicle-retention`**; the server holds upstrea
 
 ## Attribution
 
-Footer and UI copy credit **Anderson Economic Group LLC** (ADOS / Rapid Recursive®) and **Supported Intelligence LLC** (© 2026). Technical notes in the footer describe the vectorized Python port used with the demo.
+Footer and UI copy credit **Anderson Economic Group LLC** (ADOS), **Supported Intelligence LLC** with **Rapid Recursive®** patent references (see footer for numbers), and the vectorized Python port note.
 
 ## License
 

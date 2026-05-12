@@ -201,51 +201,47 @@ export function Wizard() {
 
 function Header({ onSample, onReset }: { onSample: () => void; onReset: () => void }) {
   return (
-    <div className="mt-0 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
-      <div className="min-w-0 flex-1 space-y-3">
-        <div className="flex items-center gap-2 text-[12px] text-ink-500">
-          <Car className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-ink-900 font-semibold">
+    <div className="mt-0 space-y-4">
+      <div
+        className="flex items-start justify-between gap-4 sm:gap-6 lg:gap-8"
+        role="group"
+        aria-label="Product line and demonstration notice"
+      >
+        <div className="flex min-w-0 flex-1 items-start gap-2 sm:gap-2.5">
+          <Car className="mt-0.5 h-4 w-4 shrink-0 text-ink-500 sm:h-5 sm:w-5 md:mt-1 md:h-6 md:w-6" />
+          <span className="text-ink-900 font-semibold leading-snug tracking-tight text-[15px] sm:text-base md:text-lg lg:text-xl">
             ADOS 2026 v1c · Auto Drive-or-Sell™
           </span>
         </div>
-        <div>
+        <div className="max-w-xl shrink-0 space-y-1 text-right text-[10px] leading-snug text-ink-500 sm:text-[11px] sm:leading-snug" role="note">
+          <span className="block text-ink-600">
+            This is a technology demonstration, not a forecast.
+          </span>
+          <span className="block text-ink-500">
+            <a
+              href="mailto:support@supportedintelligence.com"
+              className="font-semibold text-approve-700 underline decoration-approve-300 underline-offset-2 transition hover:text-approve-900 hover:decoration-approve-500"
+            >
+              Contact Supported Intelligence
+            </a>{" "}
+            for information on licensing this model or adapting it to your specific
+            needs.
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+        <div className="min-w-0 flex-1 space-y-3">
           <span className="chip chip-coral">
             <Sparkles className="h-3 w-3" />
             Interview-style guided UX · progressive disclosure
           </span>
-          <h1 className="mt-2 font-display text-2xl md:text-3xl font-bold text-ink-900 leading-tight">
+          <h1 className="font-display text-2xl font-bold leading-tight text-ink-900 sm:text-3xl md:text-4xl">
             Vehicle Retention Model ·{" "}
             <span className="gradient-text-purple">drive · sell · reduce</span>
           </h1>
-          <p className="mt-1.5 text-ink-600 text-[14px] leading-relaxed max-w-2xl">
-            The answers feed a live Rapid Recursive® sequential decision model,
-            which represents the likely decision of typical consumers that
-            regularly rely upon their vehicles, and are considering whether to
-            sell their vehicle and buy a new one; reduce their usage; or continue
-            driving their current vehicle. This method allows for a rich interplay
-            between costs of new vehicles, fuel economy, fuel prices, and economic
-            conditions. It also provides insight into how policy-related costs can
-            affect buying decisions among many different cohorts of consumers.
-          </p>
         </div>
-      </div>
-      <div className="flex w-full shrink-0 flex-col items-end gap-2 lg:max-w-2xl xl:max-w-3xl">
-        <p
-          className="w-full text-right text-[10px] leading-snug text-ink-500 sm:text-[11px]"
-          role="note"
-        >
-          This is a technology demonstration, not a forecast. Contact Supported
-          Intelligence LLC for information on licensing this model or adapting it
-          to your specific needs:{" "}
-          <a
-            href="mailto:support@supportedintelligence.com"
-            className="text-approve-700 underline underline-offset-2 hover:text-approve-900"
-          >
-            support@supportedintelligence.com
-          </a>
-        </p>
-        <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
+        <div className="flex shrink-0 flex-col gap-2 self-start sm:items-end sm:pt-1">
           <button onClick={onSample} className="btn-primary !py-2 !px-3 !text-[12px]">
             <Wand2 className="h-3.5 w-3.5" />
             Run sample answers
@@ -256,6 +252,17 @@ function Header({ onSample, onReset }: { onSample: () => void; onReset: () => vo
           </button>
         </div>
       </div>
+
+      <p className="max-w-none text-pretty text-ink-600 text-[15px] leading-[1.65] sm:text-base lg:text-[1.0625rem] lg:leading-relaxed xl:text-lg">
+        The answers feed a live Rapid Recursive® sequential decision model,
+        which represents the likely decision of typical consumers that
+        regularly rely upon their vehicles, and are considering whether to
+        sell their vehicle and buy a new one; reduce their usage; or continue
+        driving their current vehicle. This method allows for a rich interplay
+        between costs of new vehicles, fuel economy, fuel prices, and economic
+        conditions. It also provides insight into how policy-related costs can
+        affect buying decisions among many different cohorts of consumers.
+      </p>
     </div>
   );
 }
