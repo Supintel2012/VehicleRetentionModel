@@ -4,6 +4,12 @@ Next.js web demo for the **Auto Drive-or-Sell™** decision framework (**ADOS 20
 
 > **This is a technology demonstration, not a forecast.** Inputs are illustrative and are not intended to represent any specific cohort of buyers or time period. For licensing the model with production inputs, contact **Supported Intelligence LLC**.
 
+## Live demo
+
+A working deployment is on **Vercel**: [https://vehicle-retention-model.vercel.app/](https://vehicle-retention-model.vercel.app/)
+
+This build was pushed for the **[28th International Technical Conference on the Enhanced Safety of Vehicles (ESV)](https://tc.canada.ca/en/road-transportation/28th-international-technical-conference-enhanced-safety-vehicles-esv)** — co-hosted by Transport Canada and the National Highway Traffic Safety Administration, **May 12–15, 2026**, Toronto, Ontario.
+
 Repository: [github.com/Supintel2012/VehicleRetentionModel](https://github.com/Supintel2012/VehicleRetentionModel)
 
 ## Features
