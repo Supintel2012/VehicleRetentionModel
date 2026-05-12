@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+html {
+  background: #ffffff;
+}
+
+html,
+body {
+  color: #1b1a33;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background:
+    radial-gradient(1100px 500px at 80% -100px, rgba(91, 60, 234, 0.10), transparent 70%),
+    radial-gradient(900px 400px at -10% 10%, rgba(149, 119, 247, 0.08), transparent 70%),
+    #ffffff;
+}
+
+.dot-bg {
+  background-image: radial-gradient(rgba(91, 60, 234, 0.18) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+
+.gradient-text-purple {
+  background: linear-gradient(90deg, #5b3cea 0%, #9577f7 60%, #c084fc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gradient-text-coral {
+  background: linear-gradient(90deg, #ee7f43 0%, #e07555 50%, #f5b800 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(91, 60, 234, 0.08);
+  border: 1px solid rgba(91, 60, 234, 0.18);
+  color: #46436a;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #5b3cea;
+  color: white;
+  padding: 0.7rem 1.1rem;
+  border-radius: 0.6rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow: 0 6px 18px -6px rgba(91, 60, 234, 0.55);
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-primary:hover {
+  background: #4f3deb;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -8px rgba(91, 60, 234, 0.65);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.1rem;
+  border-radius: 0.6rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: 1px solid rgba(31, 28, 72, 0.12);
+  color: #1b1a33;
+  background: white;
+  transition: all 0.15s ease;
+}
+.btn-ghost:hover {
+  border-color: rgba(91, 60, 234, 0.4);
+  color: #5b3cea;
+}
+
+.btn-coral {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #e07555;
+  color: white;
+  padding: 0.6rem 0.95rem;
+  border-radius: 0.55rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 6px 18px -6px rgba(224, 117, 85, 0.55);
+  transition: all 0.15s ease;
+}
+.btn-coral:hover {
+  background: #c25a3c;
+  transform: translateY(-1px);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #ebe5fe;
+  color: #4f3deb;
+  border: 1px solid #d6cafd;
+}
+
+.chip-coral {
+  background: #ffe4d3;
+  color: #c25a3c;
+  border-color: #fdc6a1;
+}
+
+.chip-emerald {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #6ee7b7;
+}
+
+.card {
+  background: white;
+  border: 1px solid rgba(31, 28, 72, 0.08);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(31, 28, 72, 0.03), 0 12px 32px -16px rgba(31, 28, 72, 0.10);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card:hover {
+  border-color: rgba(91, 60, 234, 0.25);
+}
+
+@keyframes pulseSoft {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.pulse-soft { animation: pulseSoft 2.4s ease-in-out infinite; }
+
+@keyframes fieldFlash {
+  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); background: rgba(16, 185, 129, 0.10); }
+  100% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); background: rgba(16, 185, 129, 0); }
+}
+.field-flash { animation: fieldFlash 1.4s ease-out; }
+
+/* Action badges — drive / sell / reduce */
+.action-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.action-drive  { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.action-sell   { background: #ffe4e6; color: #9f1239; border: 1px solid #fda4af; }
+.action-reduce { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+
+@keyframes actionPop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.action-pop { animation: actionPop 0.45s cubic-bezier(.2,.8,.2,1); }
