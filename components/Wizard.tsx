@@ -37,7 +37,7 @@ const ACTION_COPY: Record<ActionName, { title: string; tone: string; verb: strin
 };
 
 const TECH_DEMO_DISCLAIMER =
-  "This is a technology demonstration, not a forecast. Inputs are illustrative and are not intended to represent any specific cohort of buyers or time period. Contact Supported Intelligence LLC for information on licensing the model for use with specific inputs.";
+  "This is a technology demonstration, not a forecast. <br />Inputs are illustrative and are not intended to represent any specific cohort of buyers or time period. <br />Contact Supported Intelligence LLC for information on licensing the model for use with specific inputs.";
 
 export function Wizard() {
   const template = VEHICLE_RETENTION_TEMPLATE;
