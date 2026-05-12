@@ -16,10 +16,15 @@ function Footer() {
   return (
     <footer className="mt-12 pt-6 border-t border-ink-200 text-[11px] text-ink-500 leading-relaxed space-y-3">
       <p className="text-ink-600">
-        This is a technology demonstration, not a forecast. Inputs are
-        illustrative and are not intended to represent any specific cohort of
-        buyers or time period. Contact Supported Intelligence LLC for information
-        on licensing the model for use with specific inputs.
+        This is a technology demonstration, not a forecast. Contact Supported
+        Intelligence LLC for information on licensing this model or adapting it to
+        your specific needs:{" "}
+        <a
+          href="mailto:support@supportedintelligence.com"
+          className="text-approve-700 underline underline-offset-2 hover:text-approve-900"
+        >
+          support@supportedintelligence.com
+        </a>
       </p>
       <div>
         © 2015, 2017, 2018, 2021, 2026 Anderson Economic Group LLC. Auto

@@ -12,8 +12,8 @@ export const VEHICLE_RETENTION_TEMPLATE: Template = {
   name: "Vehicle Retention Model",
   category: "ADOS 2026 v1c · Auto Drive-or-Sell™",
   summary:
-    "Solve the 4-D Auto Drive-or-Sell™ decision MDP. State = (age, fuel economy, fuel price, economic conditions); actions = drive · sell · reduce. Vectorized v1c port with sparse Kronecker-product transitions.",
-  horizon: "Infinite-horizon discounted MDP",
+    "Rapid Recursive® sequential decision model for drive, sell, or reduce choices across new-vehicle costs, fuel economy, fuel prices, and economic conditions (ADOS 2026 v1c).",
+  horizon: "Sequential vehicle retention (infinite horizon)",
   default_state_count: 880,
   steps: [
     {
@@ -60,7 +60,7 @@ export const VEHICLE_RETENTION_TEMPLATE: Template = {
           min: 4.0,
           max: 6.0,
           step: 0.1,
-          default: 5.0,
+          default: 5.5,
           unit: "$/gal",
           required: true,
           paramKey: "query_state.fuel_price",
@@ -102,7 +102,7 @@ export const VEHICLE_RETENTION_TEMPLATE: Template = {
           min: 2000,
           max: 15000,
           step: 500,
-          default: 8000,
+          default: 12000,
           unit: "mi/yr",
           paramKey: "ReducedMiles",
         },
@@ -147,7 +147,7 @@ export const VEHICLE_RETENTION_TEMPLATE: Template = {
     fuel_price_now: 5.5,
     econ_now: 95,
     std_miles: 15000,
-    reduced_miles: 8000,
+    reduced_miles: 12000,
     new_car_price: 43000,
     fixed_cost: 2500,
     discount_rate: 5,

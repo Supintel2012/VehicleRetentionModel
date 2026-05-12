@@ -36,9 +36,6 @@ const ACTION_COPY: Record<ActionName, { title: string; tone: string; verb: strin
   reduce: { title: "Reduce", tone: "action-reduce", verb: "Cut back on miles to lower variable cost." },
 };
 
-const TECH_DEMO_DISCLAIMER =
-  "This is a technology demonstration, not a forecast. Inputs are illustrative and are not intended to represent any specific cohort of buyers or time period. Contact Supported Intelligence LLC for information on licensing the model for use with specific inputs.";
-
 export function Wizard() {
   const template = VEHICLE_RETENTION_TEMPLATE;
   const [answers, setAnswers] = useState<Answers>(seedDefaults(template.steps));
@@ -222,11 +219,14 @@ function Header({ onSample, onReset }: { onSample: () => void; onReset: () => vo
             <span className="gradient-text-purple">drive · sell · reduce</span>
           </h1>
           <p className="mt-1.5 text-ink-600 text-[14px] leading-relaxed max-w-2xl">
-            Solve the 4-D Auto Drive-or-Sell™ decision MDP for your specific
-            vehicle. Answers feed a live{" "}
-            <code className="font-mono kbd">policy iteration</code> solve over
-            sparse Kronecker-product transitions, and you get back the optimal
-            action plus the full policy + value surface.
+            The answers feed a live Rapid Recursive® sequential decision model,
+            which represents the likely decision of typical consumers that
+            regularly rely upon their vehicles, and are considering whether to
+            sell their vehicle and buy a new one; reduce their usage; or continue
+            driving their current vehicle. This method allows for a rich interplay
+            between costs of new vehicles, fuel economy, fuel prices, and economic
+            conditions. It also provides insight into how policy-related costs can
+            affect buying decisions among many different cohorts of consumers.
           </p>
         </div>
       </div>
@@ -235,7 +235,15 @@ function Header({ onSample, onReset }: { onSample: () => void; onReset: () => vo
           className="w-full text-right text-[10px] leading-snug text-ink-500 sm:text-[11px]"
           role="note"
         >
-          {TECH_DEMO_DISCLAIMER}
+          This is a technology demonstration, not a forecast. Contact Supported
+          Intelligence LLC for information on licensing this model or adapting it
+          to your specific needs:{" "}
+          <a
+            href="mailto:support@supportedintelligence.com"
+            className="text-approve-700 underline underline-offset-2 hover:text-approve-900"
+          >
+            support@supportedintelligence.com
+          </a>
         </p>
         <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
           <button onClick={onSample} className="btn-primary !py-2 !px-3 !text-[12px]">

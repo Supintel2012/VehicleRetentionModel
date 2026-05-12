@@ -1,8 +1,8 @@
 # Vehicle Retention Model
 
-Next.js web demo for the **Auto Drive-or-Sell™** decision framework (**ADOS 2026 v1c**): an interview-style wizard collects inputs, then calls a **policy iteration** solve and visualizes the resulting policy and value surface.
+Next.js web demo for the **Auto Drive-or-Sell™** decision framework (**ADOS 2026 v1c**): an interview-style wizard collects inputs, then runs a **Rapid Recursive®** sequential decision solve and visualizes the resulting policy and value surface.
 
-> **This is a technology demonstration, not a forecast.** Inputs are illustrative and are not intended to represent any specific cohort of buyers or time period. For licensing the model with production inputs, contact **Supported Intelligence LLC**.
+> **This is a technology demonstration, not a forecast.** Contact **Supported Intelligence LLC** for licensing this model or adapting it to your needs: [support@supportedintelligence.com](mailto:support@supportedintelligence.com).
 
 ## Live demo
 
