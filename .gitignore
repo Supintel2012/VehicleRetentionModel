@@ -13,3 +13,6 @@ next-env.d.ts
 .swarm/
 ruvector.db
 ruvector.db-*
+
+# Agent scratch work (never commit)
+.llm-scratch/
