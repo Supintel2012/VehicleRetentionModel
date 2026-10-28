@@ -218,7 +218,7 @@ export function AssumptionsPanel({
               Reset to defaults
             </button>
             <p className="text-xs leading-snug text-slate-500">
-              The defaults are the ADOS 2026 v1c values. All values are illustrative and uncalibrated. A typed value is used when
+              The defaults are the ADOS 2026 v1c values, except reduced miles (12,000 here; the engine uses 8,000). All values are illustrative and uncalibrated. A typed value is used when
               you press Enter or leave the field, and the model is then solved again.
             </p>
           </div>

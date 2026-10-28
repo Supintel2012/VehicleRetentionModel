@@ -50,7 +50,8 @@ const OWNER_FIELDS: Field[] = [
     min: 2_000,
     max: 15_000,
     step: 500,
-    default: 8_000,
+    // 12,000 at AEG's request (May 2026); the engine's own default is 8,000.
+    default: 12_000,
     unit: "miles",
     paramKey: "ReducedMiles",
   },

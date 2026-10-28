@@ -21,10 +21,10 @@ function rejects(body: unknown, message: RegExp) {
   });
 }
 
-test("the panel's default values (the engine's own defaults) pass and map to exactly the expected parameters", () => {
+test("the panel's default values pass and map to exactly the expected parameters", () => {
   assert.deepEqual(parseSolveRequest(buildSolveBody(template, defaultAnswers())), {
     StdMiles: 15_000,
-    ReducedMiles: 8_000,
+    ReducedMiles: 12_000,
     PriceNewCar: 43_000,
     FixedCost: 2_500,
     d: 0.05,
@@ -149,7 +149,7 @@ test("the page's own request (defaults plus cohorts and a +$1,000 change) maps t
   const body = { ...buildSolveBody(template, defaultAnswers()), cohorts: true, price_shock: 1_000, projection_years: 10 };
   assert.deepEqual(parseSolveRequest(body), {
     StdMiles: 15_000,
-    ReducedMiles: 8_000,
+    ReducedMiles: 12_000,
     PriceNewCar: 43_000,
     FixedCost: 2_500,
     d: 0.05,
