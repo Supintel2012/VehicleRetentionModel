@@ -1,54 +1,22 @@
-import { NextResponse } from "next/server";
+import { createRateLimiter } from "@/lib/rate-limit";
+import { runDecisionModel } from "@/lib/rr-toolbox";
+import { createSolveHandler } from "@/lib/solve-handler";
 
 /**
- * Server-side proxy to the RR Toolbox `/vehicle-retention/solve` endpoint.
- *
- * Forwards the JSON body untouched and attaches the API key from the server
- * env so the credential never reaches the client. Intended target is the
- * Python FastAPI service from RRToolbox-API.
+ * Solve proxy: validates the wizard's answers, then runs the RR Toolbox
+ * `AutoDriveOrSell` model through the MCP `run_decision_model` tool with the
+ * server-held RRTOOLBOX_API_KEY. Errors are returned as a reason code plus a
+ * plain message; upstream detail stays in the server log.
  */
-export async function POST(req: Request) {
-  const apiUrl = process.env.RRTOOLBOX_API_URL ?? "http://localhost:8000";
-  const apiKey = process.env.RRTOOLBOX_API_KEY ?? "";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
-  let payload: unknown;
-  try {
-    payload = await req.json();
-  } catch {
-    return NextResponse.json(
-      { status: "error", message: "Invalid JSON body" },
-      { status: 400 },
-    );
-  }
+const handleSolve = createSolveHandler({
+  env: process.env,
+  runModel: runDecisionModel,
+  limiter: createRateLimiter({ limit: 20, windowMs: 60_000 }),
+});
 
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${apiUrl}/vehicle-retention/solve`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(apiKey ? { Authorization: apiKey } : {}),
-      },
-      body: JSON.stringify(payload),
-      cache: "no-store",
-    });
-  } catch (err) {
-    return NextResponse.json(
-      {
-        status: "error",
-        message: `Could not reach RR Toolbox API at ${apiUrl}: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      },
-      { status: 502 },
-    );
-  }
-
-  const text = await upstream.text();
-  return new NextResponse(text, {
-    status: upstream.status,
-    headers: {
-      "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
-    },
-  });
+export async function POST(request: Request) {
+  return handleSolve(request);
 }

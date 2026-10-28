@@ -133,7 +133,7 @@ export const VEHICLE_RETENTION_TEMPLATE: Template = {
           type: "scale",
           prompt: "Annual discount rate (×100)",
           help: "5 means a 5% personal discount rate.",
-          min: 0,
+          min: 1,
           max: 15,
           default: 5,
           paramKey: "d.scaled_pct",

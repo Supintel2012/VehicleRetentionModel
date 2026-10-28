@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { solveVehicleRetention } from "@/lib/client";
+import { SOLVE_FALLBACK_MESSAGE, SolveRequestError, solveVehicleRetention } from "@/lib/client";
 import { VEHICLE_RETENTION_TEMPLATE, buildSolveBody } from "@/lib/template";
 import type {
   ActionName,
@@ -89,7 +89,7 @@ export function Wizard() {
       setSolveData(r.data);
       setPhase("solved");
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(e instanceof SolveRequestError ? e.message : SOLVE_FALLBACK_MESSAGE);
       setPhase("review");
     }
   }
@@ -163,7 +163,7 @@ export function Wizard() {
             <NavBar
               onBack={back}
               onNext={solve}
-              nextLabel="Solve · POST /vehicle-retention/solve"
+              nextLabel="Solve with the Rapid Recursive® model"
               nextIcon={<Cpu className="h-3.5 w-3.5" />}
             />
           )}
@@ -171,7 +171,7 @@ export function Wizard() {
           {phase === "solving" && (
             <div className="card p-4 flex items-center gap-2 text-ink-500 text-[13px]">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Solving · POST <code className="font-mono">/vehicle-retention/solve</code>
+              Solving with the Rapid Recursive® model…
             </div>
           )}
 
@@ -283,7 +283,8 @@ function Stepper({
   ];
   return (
     <div className="card p-3">
-      <div className={`grid grid-cols-2 md:grid-cols-${all.length} gap-1.5`}>
+      {/* Tailwind only emits literal class names: 3 interview steps + Review + Solve. */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5">
         {all.map((s) => {
           const done =
             (s.kind === "interview" &&
@@ -530,8 +531,7 @@ function ReviewPanel({
         Confirm before solving
       </h3>
       <p className="mt-1 text-[12.5px] text-ink-500">
-        We&apos;ll POST these to{" "}
-        <code className="font-mono kbd">/vehicle-retention/solve</code>.
+        These answers will be solved with the Rapid Recursive® model.
       </p>
       <div className="mt-4 space-y-3">
         {template.steps.map((s) => (
