@@ -48,7 +48,7 @@ test("with the cohort engine, each price change is a new request, except $0, whi
 test("the plain solve at the new price is asked for only on the scenario tab, without cohort output, at a non-zero change", () => {
   const body = buildRunBody(answers, 1_000);
   const old: Answered = { body, hasCohorts: false };
-  assert.deepEqual(fallbackRequest(body, 1_250, old, true), { StdMiles: 15_000, ReducedMiles: 8_000, FixedCost: 2_500, d: 0.05, PriceNewCar: 44_250 });
+  assert.deepEqual(fallbackRequest(body, 1_250, old, true), { StdMiles: 15_000, ReducedMiles: 12_000, FixedCost: 2_500, d: 0.05, PriceNewCar: 44_250 });
   assert.equal(fallbackRequest(body, 1_250, old, false), null, "another tab");
   assert.equal(fallbackRequest(body, 0, old, true), null, "no price change");
   assert.equal(fallbackRequest(body, 1_250, { body, hasCohorts: true }, true), null, "the cohort output answers the scenario");

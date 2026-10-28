@@ -96,7 +96,7 @@ test("fallback: the shocked plain solve keeps the owner profile, moves the price
   const body = buildRunBody(defaultAnswers(), 1_000);
   assert.deepEqual(shockedPriceBody(body, 1_000), {
     ok: true,
-    body: { StdMiles: 15_000, ReducedMiles: 8_000, FixedCost: 2_500, d: 0.05, PriceNewCar: 44_000 },
+    body: { StdMiles: 15_000, ReducedMiles: 12_000, FixedCost: 2_500, d: 0.05, PriceNewCar: 44_000 },
   });
   assert.deepEqual(shockedPriceBody({}, -3_000), { ok: true, body: { PriceNewCar: 40_000 } });
   assert.deepEqual(shockedPriceBody({ PriceNewCar: 20_000 }, -250), {

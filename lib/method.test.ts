@@ -15,9 +15,12 @@ test("the ADOS 2026 v1c defaults written here match the engine's own params echo
   }
 });
 
-test("the panel's defaults are the engine's own defaults, so Reset to defaults reproduces the default run", () => {
+test("the panel's defaults are the engine's own defaults except reduced miles, which is AEG's 12,000", () => {
   const body = buildSolveBody(VEHICLE_RETENTION_TEMPLATE, defaultAnswers());
-  for (const key of PANEL_KEYS) assert.equal(body[key], ADOS_DEFAULTS[key], key);
+  for (const key of PANEL_KEYS) {
+    assert.equal(body[key], key === "ReducedMiles" ? 12_000 : ADOS_DEFAULTS[key], key);
+  }
+  assert.equal(ADOS_DEFAULTS.ReducedMiles, 8_000, "the engine's own default, stated on the panel");
 });
 
 test("values come from the echo when present; otherwise the panel inputs from the request and defaults for the rest", () => {
