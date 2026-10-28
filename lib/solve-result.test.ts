@@ -234,3 +234,169 @@ test("a tool error carries the RR Toolbox status for classification but nothing 
     return true;
   });
 });
+
+// ── Phase 2: the opt-in cohort block (RR Toolbox engine with fleet output) ─
+
+/** Engine output with cohorts: true, price_shock: 1000 at the defaults, compacted like the MCP result. */
+const cohortsFixture = JSON.parse(readFileSync(new URL("./fixtures/ados-cohorts-run.json", import.meta.url), "utf8"));
+
+function cohortEnvelope() {
+  return { ...structuredClone(fixture.envelope), raw: { status: "success", data: structuredClone(cohortsFixture.data) } };
+}
+
+const cohortRequest = { cohorts: true, price_shock: 1_000, projection_years: 10 };
+
+test("a cohort block is read with the published default figures", () => {
+  const { data } = adaptToolResult(asText(cohortEnvelope()), cohortRequest);
+  const cohorts = data.cohorts;
+  assert.ok(cohorts, "cohorts are kept");
+  const round = (x: number | null, digits = 4) => (x === null ? null : Number(x.toFixed(digits)));
+  assert.deepEqual(cohorts.replacement_hazard.map((x) => round(x)), [0, 0, 0, 0, 0, 0.2831, 0.6766, 1, null, null, null]);
+  assert.deepEqual(cohorts.fleet_share.map((x) => round(x)), [0.1439, 0.1439, 0.1439, 0.1439, 0.1439, 0.1439, 0.1032, 0.0334, 0, 0, 0]);
+  assert.deepEqual(cohorts.grid_share_sell, [0, 0, 0, 0, 0, 0.35, 0.75, 1, 1, 1, 1]);
+  assert.equal(round(cohorts.annual_replacement_rate, 5), 0.14391);
+  assert.equal(round(cohorts.mean_holding_years, 2), 6.95);
+  assert.deepEqual(cohorts.projection.years, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.equal(cohorts.caveats.length, 4);
+
+  const shock = cohorts.price_shock;
+  assert.ok(shock);
+  assert.equal(shock.delta_price, 1_000);
+  assert.equal(shock.price_new_car, 44_000);
+  assert.equal(round(shock.annual_replacement_rate, 6), 0.143756);
+  assert.equal(round(shock.implied_elasticity, 3), -0.046);
+  assert.equal(round(shock.first_year_elasticity, 3), -0.31);
+  assert.equal(round(shock.cumulative_elasticity, 3), -0.063);
+  assert.equal(shock.states_changed, 3);
+  assert.deepEqual(
+    shock.changed_states.map((s) => [s.state_id, s.age, s.fuel_economy, s.fuel_price, s.econ_condition, s.from, s.to]),
+    [
+      [403, 5, 26, 4, 110, "sell", "drive"],
+      [431, 5, 28, 5, 110, "sell", "drive"],
+      [435, 5, 28, 5.5, 110, "sell", "drive"],
+    ],
+  );
+  assert.equal(data.params?.PriceNewCar, 43_000);
+  assert.equal(data.params?.ReducedMiles, 8_000);
+  assert.equal("cohorts" in (data.params ?? {}), false, "flags are not numbers and are left out of params");
+});
+
+test("an engine without the cohort output (today's API) is still read, with no cohorts", () => {
+  const { data } = adaptToolResult(asText(compactEnvelope()), cohortRequest);
+  assert.equal("cohorts" in data, false);
+  assert.equal("params" in data, false);
+  assert.equal(data.policy.length, 880);
+});
+
+test("a cohort block that does not belong to this policy is refused", () => {
+  const mutate = (change: (data: typeof cohortsFixture.data) => void, request: Record<string, unknown> = cohortRequest) => {
+    const envelope = cohortEnvelope();
+    change(envelope.raw.data);
+    return () => adaptToolResult(asText(envelope), request);
+  };
+  protocolError(mutate((d) => (d.cohorts.grid_share_sell[5] = 0.5)), /grid_share_sell\[5\] disagrees with the policy/);
+  // State 403 (age 5, 26 mpg, $4.00, index 110) sells; a policy that keeps it no longer matches the block.
+  protocolError(mutate((d) => {
+    d.policy[402] = 1;
+    delete d.summary.decision_breakdown;
+  }), /grid_share_sell\[5\] disagrees with the policy/);
+  protocolError(mutate((d) => (d.cohorts.ages[0] = 1)), /cohorts\.ages disagrees with grids\.age/);
+  protocolError(mutate((d) => d.cohorts.fleet_share.pop()), /fleet_share does not have 11 entries/);
+  protocolError(mutate((d) => (d.cohorts.fleet_share[0] = 0.5)), /fleet_share does not sum to 1/);
+  protocolError(mutate((d) => (d.cohorts.replacement_hazard[6] = 1.7)), /replacement_hazard\[6\] is not a share/);
+  protocolError(mutate((d) => (d.cohorts.annual_replacement_rate = "0.14")), /annual_replacement_rate is not a finite number/);
+  protocolError(mutate((d) => (d.cohorts.mean_holding_years = -1)), /mean_holding_years/);
+  protocolError(mutate((d) => (d.cohorts.projection.years = [0, 1, 2])), /projection\.years is not 1, 2, \.\.\., n/);
+  protocolError(mutate((d) => (d.cohorts.caveats = [1])), /caveats is not a list of strings/);
+
+  const shock = (change: (s: typeof cohortsFixture.data.cohorts.price_shock) => void) => mutate((d) => change(d.cohorts.price_shock));
+  protocolError(shock((s) => (s.changed_states[0].from = "drive")), /changed_states\[0\]\.from disagrees with the policy/);
+  protocolError(shock((s) => (s.changed_states[0].to = "sell")), /changed_states\[0\] does not change action/);
+  protocolError(shock((s) => (s.changed_states[1].fuel_price = 4.5)), /changed_states\[1\]\.fuel_price disagrees with state 431/);
+  protocolError(shock((s) => (s.changed_states[2].state_id = 403)), /changed_states\[2\]\.state_id is not a distinct state/);
+  protocolError(shock((s) => (s.changed_states[0].to = "park")), /changed_states\[0\]\.to is not an action name/);
+  protocolError(shock((s) => (s.states_changed = 4)), /states_changed does not count changed_states/);
+  protocolError(shock((s) => (s.states_changed = 2)), /states_changed does not count changed_states/);
+  protocolError(shock((s) => (s.states_changed = 2.5)), /states_changed is not a count of states/);
+  // A list cut short must be marked, and the count must then exceed the rows listed.
+  protocolError(shock((s) => s.changed_states.pop()), /states_changed does not count changed_states/);
+  protocolError(shock((s) => Object.assign(s, { changed_states_truncated: true })), /states_changed does not count changed_states/);
+  protocolError(shock((s) => (s.delta_price = 0)), /delta_price is zero/);
+  protocolError(shock((s) => (s.first_year_rate = null)), /first_year_rate is not a finite number/);
+});
+
+test("a switching-state list cut short by the service is accepted when it says so, with the full count kept", () => {
+  const envelope = cohortEnvelope();
+  const shock = envelope.raw.data.cohorts.price_shock;
+  shock.changed_states = shock.changed_states.slice(0, 2);
+  Object.assign(shock, { changed_states_truncated: true });
+  const parsed = adaptToolResult(asText(envelope), cohortRequest).data.cohorts?.price_shock;
+  assert.equal(parsed?.states_changed, 3);
+  assert.equal(parsed?.changed_states.length, 2);
+  assert.equal(parsed?.changed_states_truncated, true);
+  const whole = adaptToolResult(asText(cohortEnvelope()), cohortRequest).data.cohorts?.price_shock;
+  assert.equal(whole && "changed_states_truncated" in whole, false);
+  // A compaction that always writes the flag sends false for a complete list.
+  const complete = cohortEnvelope();
+  Object.assign(complete.raw.data.cohorts.price_shock, { changed_states_truncated: false });
+  const read = adaptToolResult(asText(complete), cohortRequest).data.cohorts?.price_shock;
+  assert.equal(read?.changed_states.length, 3);
+  assert.equal(read && "changed_states_truncated" in read, false);
+});
+
+/**
+ * A real 60ac78e run with 78 switching states (the most found inside the page's ranges), compacted by the
+ * RR Toolbox API's Phase 1c compaction: 50 rows listed, `changed_states_truncated: true`, the full count kept.
+ * This is the shape the API sends for such a run; the flag's name is the contract between the two repos.
+ */
+const truncatedFixture = JSON.parse(readFileSync(new URL("./fixtures/ados-truncated-switches-run.json", import.meta.url), "utf8"));
+
+test("a 78-state switch list cut to 50 rows by the RR Toolbox API is read with the full count", () => {
+  const envelope = { ...structuredClone(fixture.envelope), raw: { status: "success", data: structuredClone(truncatedFixture.data) } };
+  const shock = adaptToolResult(asText(envelope), truncatedFixture.request).data.cohorts?.price_shock;
+  assert.equal(shock?.states_changed, 78);
+  assert.equal(shock?.changed_states.length, 50);
+  assert.equal(shock?.changed_states_truncated, true);
+  assert.equal(shock?.delta_price, 3_000);
+  // Without the flag the same list is a protocol error: a shortened list must say so.
+  delete envelope.raw.data.cohorts.price_shock.changed_states_truncated;
+  protocolError(() => adaptToolResult(asText(envelope), truncatedFixture.request), /states_changed does not count changed_states/);
+});
+
+test("the run is checked against the request: price change, price and echoed inputs", () => {
+  const run = (request: Record<string, unknown>) => () => adaptToolResult(asText(cohortEnvelope()), request);
+  protocolError(run({ ...cohortRequest, price_shock: -1_000 }), /cohorts\.price_shock is for a different price change/);
+  protocolError(run({ ...cohortRequest, price_shock: undefined }), /different price change/);
+  protocolError(run({ ...cohortRequest, PriceNewCar: 45_000 }), /params\.PriceNewCar disagrees with the request/);
+  protocolError(run({ ...cohortRequest, ReducedMiles: 12_000 }), /params\.ReducedMiles disagrees with the request/);
+  protocolError(run({ ...cohortRequest, projection_years: 5 }), /params\.projection_years disagrees/);
+  assert.doesNotThrow(run({ ...cohortRequest, PriceNewCar: 43_000, ReducedMiles: 8_000, d: 0.05 }));
+
+  const noShock = cohortEnvelope();
+  delete noShock.raw.data.cohorts.price_shock;
+  assert.doesNotThrow(() => adaptToolResult(asText(noShock), { cohorts: true }));
+  protocolError(() => adaptToolResult(asText(noShock), cohortRequest), /price_shock is missing for the price change asked for/);
+
+  const shiftedPrice = cohortEnvelope();
+  shiftedPrice.raw.data.cohorts.price_shock.price_new_car = 44_500;
+  protocolError(() => adaptToolResult(asText(shiftedPrice), { ...cohortRequest, PriceNewCar: 43_000 }), /not the requested price plus the change/);
+});
+
+test("actionlabels and policy_index_base must describe the policy encoding the page reads", () => {
+  const relabelled = cohortEnvelope();
+  relabelled.raw.data.actionlabels = ["sell", "drive", "reduce"];
+  protocolError(() => adaptToolResult(asText(relabelled)), /actionlabels is not \[drive, sell, reduce\]/);
+  const zeroBased = cohortEnvelope();
+  zeroBased.raw.data.policy_index_base = 0;
+  protocolError(() => adaptToolResult(asText(zeroBased)), /policy_index_base is not 1/);
+});
+
+test("a cohort block rounded to two decimals by a future compaction is still accepted", () => {
+  const envelope = cohortEnvelope();
+  const c = envelope.raw.data.cohorts;
+  const r = (x: number | null) => (x === null ? null : Math.round(x * 100) / 100);
+  c.fleet_share = c.fleet_share.map(r);
+  c.grid_share_sell = c.grid_share_sell.map(r);
+  c.replacement_hazard = c.replacement_hazard.map(r);
+  assert.doesNotThrow(() => adaptToolResult(asText(envelope), cohortRequest));
+});

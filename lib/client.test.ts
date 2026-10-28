@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
-import { SOLVE_FALLBACK_MESSAGE, SolveRequestError, solveErrorMessage, solveVehicleRetention } from "./client.ts";
+import { SOLVE_FALLBACK_MESSAGE, SolveCancelledError, SolveRequestError, solveErrorMessage, solveVehicleRetention } from "./client.ts";
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -87,4 +87,40 @@ test("a solve that outlasts the client's wait gets the timeout message, without 
     mock.timers.reset();
     if (timeout) Object.defineProperty(AbortSignal, "timeout", timeout);
   }
+});
+
+// ── Phase 2: cancelling a superseded solve ──────────────────────────────────
+
+test("aborting the caller's signal cancels the request with SolveCancelledError, not a message to show", async () => {
+  let seen: AbortSignal | undefined;
+  globalThis.fetch = (_url, init) => {
+    seen = init?.signal ?? undefined;
+    return new Promise((_, reject) => seen?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError"))));
+  };
+  const caller = new AbortController();
+  const pending = solveVehicleRetention({}, { signal: caller.signal });
+  await Promise.resolve();
+  assert.equal(seen?.aborted, false);
+  caller.abort();
+  await assert.rejects(pending, SolveCancelledError);
+  assert.equal(seen?.aborted, true, "the fetch itself is aborted");
+});
+
+test("a signal aborted before the call sends nothing; one aborted while the body is read still cancels", async () => {
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return new Response(JSON.stringify({ status: "success", data: {}, attribution: "x", warnings: [] }));
+  };
+  const before = new AbortController();
+  before.abort();
+  await assert.rejects(solveVehicleRetention({}, { signal: before.signal }), SolveCancelledError);
+  assert.equal(calls, 0);
+
+  const during = new AbortController();
+  globalThis.fetch = async () => {
+    during.abort();
+    return new Response(JSON.stringify({ status: "success", data: {}, attribution: "x", warnings: [] }));
+  };
+  await assert.rejects(solveVehicleRetention({}, { signal: during.signal }), SolveCancelledError);
 });
