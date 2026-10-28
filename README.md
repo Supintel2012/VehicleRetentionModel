@@ -15,18 +15,14 @@ Repository: [github.com/Supintel2012/VehicleRetentionModel](https://github.com/S
 ## Features
 
 - Guided **interview → review → solve** flow with progressive disclosure
-- Client calls a **Next.js API route** that proxies to the RR Toolbox solver (keeps API keys off the browser)
+- Client calls a **Next.js API route** that runs the RR Toolbox `AutoDriveOrSell` model over MCP (the API key stays on the server)
 - Charts: **policy heatmap** and **value surface** after a successful solve
 - Built with **Next.js 15**, **React 19**, **Tailwind CSS**, **Framer Motion**
 
 ## Prerequisites
 
-- **Node.js** 20+ (recommended; matches typical Next 15 setups)
-- A running **RR Toolbox** (or compatible) HTTP API that exposes:
-
-  `POST {RRTOOLBOX_API_URL}/vehicle-retention/solve`
-
-  with the JSON body produced by this app’s wizard (see `lib/template.ts` and `buildSolveBody`).
+- **Node.js** 22.6+ (`npm test` uses `--experimental-strip-types`; the app itself runs on Node 20+)
+- An **RR Toolbox** API key (`RRT-…`) whose account may run `AutoDriveOrSell` through the MCP tool `run_decision_model` at `https://api.rapidrecursive.com/mcp`
 
 ## Quick start
 
@@ -46,8 +42,10 @@ Edit **`.env.local`**:
 
 | Variable | Purpose |
 |----------|---------|
-| `RRTOOLBOX_API_URL` | Base URL of the toolbox API (no trailing slash), e.g. `http://localhost:8000` |
-| `RRTOOLBOX_API_KEY` | `RRT-*` key with permission to call `/vehicle-retention/*` |
+| `RRTOOLBOX_API_KEY` | Required. Server-only RR Toolbox key, sent as `Authorization: Bearer …` to the MCP endpoint. Never prefix it with `NEXT_PUBLIC_`. |
+| `RRTOOLBOX_MCP_URL` | Optional. MCP endpoint; defaults to `https://api.rapidrecursive.com/mcp`. Must be `https` (plain `http` only for `localhost`). |
+
+Without `RRTOOLBOX_API_KEY` the page still loads, and **Solve** reports that the solver is not set up.
 
 Start the dev server:
 
@@ -64,23 +62,32 @@ Open [http://localhost:3000](http://localhost:3000). Use **Run sample answers** 
 | `npm run dev` | Next.js dev server |
 | `npm run build` | Production build |
 | `npm run start` | Run production server (after `build`) |
-| `npm run lint` | ESLint |
+| `npm run lint` | ESLint 9 with `eslint-config-next` (`eslint.config.mjs`) |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Unit and MCP-client tests (`node --test`, `lib/*.test.ts`) |
 
 ## Architecture
 
 - **`app/page.tsx`** — Page shell and footer (legal / attribution copy).
 - **`components/Wizard.tsx`** — Wizard UI, disclaimer near actions, charts after solve.
 - **`lib/template.ts`** — Interview steps, defaults, and mapping to the solve payload.
-- **`app/api/vehicle-retention/route.ts`** — **POST** proxy: forwards JSON to `{RRTOOLBOX_API_URL}/vehicle-retention/solve` and adds `Authorization` from `RRTOOLBOX_API_KEY`.
+- **`app/api/vehicle-retention/route.ts`** — **POST** solve route (Node runtime, 60 s limit). It wires the pieces below together.
+- **`lib/solve-handler.ts`** — Same-origin check, body size cap, validation, configuration check, per-IP rate limit (about 20 solves per minute per server instance, keyed on the right-most `X-Forwarded-For` hop), then the MCP call.
+- **`lib/solve-input.ts`** — Whitelist: only `StdMiles`, `ReducedMiles`, `PriceNewCar`, `FixedCost`, `d` and `query_state` within the wizard's ranges. Unknown keys (grid sizes, probabilities, …) are rejected with a 400, never forwarded. The discount rate `d` must be at least 1%: at 0 the engine's discount factor is 1 and its policy iteration does not converge.
+- **`lib/rr-toolbox.ts`** — MCP client: `run_decision_model` with `{ model_name: "AutoDriveOrSell", parameters }` over Streamable HTTP, Bearer key, redirects refused, 40 s tool timeout inside a 45 s budget. Each solve ends its MCP session with an HTTP `DELETE` (waiting at most 2 s), so no session is left open on the RR Toolbox server.
+- **`lib/solve-result.ts`** — Maps the MCP result to the `SolveResponse` in `lib/types.ts`, requires the RR Toolbox attribution, passes warnings through, and rebuilds state coordinates from `grids` and `dims` when `state_table` is omitted. It reads the run envelope from the JSON text, or from `structuredContent` only when that holds the envelope (with MCP Apps on, it holds a display view-model instead).
+- **`lib/solve-errors.ts`** — Reason codes (`not_configured`, `unauthorized`, `rate_limited`, `timeout`, `unreachable`, `tool_error`, `invalid_input`, `protocol_error`), each with one fixed message. Responses never include upstream URLs, hosts, IPs or bodies; detail goes to the server log with the key redacted.
 
-The browser only talks to **`/api/vehicle-retention`**; the server holds upstream URL and key.
+The browser only talks to **`/api/vehicle-retention`**; the server holds the MCP endpoint and key.
 
 ## Deployment (e.g. Vercel)
 
 1. Connect the GitHub repo and set root to this project.
-2. Add **`RRTOOLBOX_API_URL`** and **`RRTOOLBOX_API_KEY`** in the hosting provider’s environment (Production / Preview as needed).
-3. `npm run build` must succeed; ensure the toolbox URL is reachable from the serverless region you use.
+2. Add **`RRTOOLBOX_API_KEY`** in the hosting provider’s environment (Production and Preview as needed). Set **`RRTOOLBOX_MCP_URL`** only to use a different endpoint.
+3. Redeploy after changing environment variables: the route reads them at request time, but Vercel applies changes only to new deployments.
+4. `npm run build` must succeed (it also runs ESLint and the type check).
+
+**Self-hosting with `npm run start`:** put the server behind a reverse proxy that sets or appends `X-Forwarded-For` (for nginx, `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`). `next start` keeps a client-supplied `X-Forwarded-For`, so without such a proxy each client chooses its own rate-limit key and the limit is advisory only. Vercel replaces the header with the client's address, so no extra setup is needed there.
 
 ## Attribution
 

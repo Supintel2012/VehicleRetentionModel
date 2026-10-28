@@ -120,4 +120,26 @@ export interface SolveData {
 export interface SolveResponse {
   status: "success";
   data: SolveData;
+  /** Provenance line from the RR Toolbox; display it verbatim with results. */
+  attribution: string;
+  /** Service warnings about this run (may be empty). */
+  warnings: string[];
+}
+
+/** Stable reason codes for a failed solve; each maps to one fixed user message. */
+export type SolveFailureReason =
+  | "not_configured"
+  | "unauthorized"
+  | "rate_limited"
+  | "timeout"
+  | "unreachable"
+  | "tool_error"
+  | "invalid_input"
+  | "protocol_error";
+
+export interface SolveErrorResponse {
+  status: "error";
+  reason: SolveFailureReason;
+  /** Plain-language message, safe to show as is. Never carries upstream detail. */
+  message: string;
 }
