@@ -1,10 +1,15 @@
 import type {
   ActionName,
+  ChangedState,
+  CohortProjection,
+  CohortsData,
+  PriceShockResult,
   QueryStateResult,
   SolveData,
   SolveSummary,
   StateRow,
 } from "./types.ts";
+import type { SolveParameters } from "./solve-input.ts";
 
 /**
  * Adapter from an RR Toolbox MCP `run_decision_model` result to the
@@ -18,10 +23,28 @@ import type {
  * rebuilt from `grids` + `dims` with the engine's index formula. When the
  * table is present it must agree with that rebuild, which also proves the
  * formula the policy heatmap relies on.
+ *
+ * Newer engines also return `actionlabels`, `policy_index_base`, a `params`
+ * echo of the inputs they used and, when asked with `cohorts: true`, a
+ * `cohorts` block of fleet figures. Each is optional (an engine without them
+ * is still read), but when present it is checked: the labels and index base
+ * must match the policy encoding, the echo must agree with the request, and
+ * the cohort block must belong to this policy (its equal-weight sell shares
+ * and its switching states are re-derived from the policy).
  */
 
 /** Engine action order; the engine's policy array is 1-based into this list. */
 export const ACTIONS: readonly ActionName[] = ["drive", "sell", "reduce"];
+
+/**
+ * Slack for shares: MCP compaction may round figures, and a share reported to
+ * two decimals (0.09 for 7/80) is within half a cent of the exact value.
+ */
+const SHARE_TOLERANCE = 0.005;
+/** At most this many echoed parameters are kept (the v1c engine echoes about 40). */
+const MAX_PARAMS = 80;
+/** Echoed inputs compared with the request; the engine stores them as floats. */
+const ECHOED_INPUTS = ["StdMiles", "ReducedMiles", "PriceNewCar", "FixedCost", "d", "projection_years"] as const;
 
 /** The tool ran but reported an error. The detail is for server logs only. */
 export class SolveToolError extends Error {
@@ -73,6 +96,24 @@ function positiveInteger(value: unknown, field: string): number {
 function finiteArray(value: unknown, length: number, field: string): number[] {
   if (!Array.isArray(value) || value.length !== length) fail(`${field} does not have ${length} entries`);
   return value.map((entry, i) => finite(entry, `${field}[${i}]`));
+}
+
+function finiteOrNull(value: unknown, field: string): number | null {
+  return value === null ? null : finite(value, field);
+}
+
+function share(value: unknown, field: string): number {
+  const x = finite(value, field);
+  return x >= -SHARE_TOLERANCE && x <= 1 + SHARE_TOLERANCE ? x : fail(`${field} is not a share between 0 and 1`);
+}
+
+function shareOrNull(value: unknown, field: string): number | null {
+  return value === null ? null : share(value, field);
+}
+
+function listOf<T>(value: unknown, length: number, field: string, item: (entry: unknown, field: string) => T): T[] {
+  if (!Array.isArray(value) || value.length !== length) fail(`${field} does not have ${length} entries`);
+  return value.map((entry, i) => item(entry, `${field}[${i}]`));
 }
 
 function textOf(tool: Record<string, unknown>): string | undefined {
@@ -187,6 +228,144 @@ function parseQueryState(value: unknown, rows: StateRow[], policy: number[]): Qu
   };
 }
 
+function parseProjection(value: unknown, field: string): CohortProjection {
+  const projection = record(value);
+  if (typeof projection.start !== "string") fail(`${field}.start is not a string`);
+  if (
+    !Array.isArray(projection.years) ||
+    projection.years.length === 0 ||
+    projection.years.some((year, i) => year !== i + 1)
+  ) {
+    fail(`${field}.years is not 1, 2, ..., n`);
+  }
+  const years = projection.years as number[];
+  return {
+    start: projection.start,
+    years: [...years],
+    replacement_rate: listOf(projection.replacement_rate, years.length, `${field}.replacement_rate`, share),
+    cumulative: finite(projection.cumulative, `${field}.cumulative`),
+  };
+}
+
+function actionName(value: unknown, field: string): ActionName {
+  return ACTIONS.includes(value as ActionName) ? (value as ActionName) : fail(`${field} is not an action name`);
+}
+
+function parseChangedStates(value: unknown, rows: StateRow[], policy: number[]): ChangedState[] {
+  if (!Array.isArray(value)) fail("cohorts.price_shock.changed_states is not a list");
+  const seen = new Set<number>();
+  return value.map((entry, i) => {
+    const field = `cohorts.price_shock.changed_states[${i}]`;
+    const item = record(entry);
+    const id = item.state_id;
+    if (!Number.isInteger(id) || (id as number) < 1 || (id as number) > rows.length || seen.has(id as number)) {
+      fail(`${field}.state_id is not a distinct state of this grid`);
+    }
+    seen.add(id as number);
+    const row = rows[(id as number) - 1];
+    for (const key of ["age", "fuel_economy", "fuel_price", "econ_condition"] as const) {
+      if (item[key] !== row[key]) fail(`${field}.${key} disagrees with state ${row.state_id}`);
+    }
+    const from = actionName(item.from, `${field}.from`);
+    const to = actionName(item.to, `${field}.to`);
+    if (from !== ACTIONS[policy[row.state_id - 1] - 1]) fail(`${field}.from disagrees with the policy`);
+    if (from === to) fail(`${field} does not change action`);
+    return { state_id: row.state_id, age: row.age, fuel_economy: row.fuel_economy, fuel_price: row.fuel_price, econ_condition: row.econ_condition, from, to };
+  });
+}
+
+function parsePriceShock(value: unknown, nAge: number, rows: StateRow[], policy: number[]): PriceShockResult {
+  const shock = record(value);
+  const field = "cohorts.price_shock";
+  const delta = finite(shock.delta_price, `${field}.delta_price`);
+  if (delta === 0) fail(`${field}.delta_price is zero`);
+  const price = finite(shock.price_new_car, `${field}.price_new_car`);
+  if (price <= 0 || price - delta <= 0) fail(`${field}.price_new_car or the baseline price it implies is not positive`);
+  const changed = parseChangedStates(shock.changed_states, rows, policy);
+  // A compaction may list only the first switching states; it must then say so
+  // (changed_states_truncated: true) and keep the full count in states_changed.
+  const truncated = shock.changed_states_truncated === true;
+  const count = shock.states_changed;
+  if (!Number.isInteger(count) || (count as number) > rows.length) fail(`${field}.states_changed is not a count of states`);
+  if (truncated ? (count as number) <= changed.length : count !== changed.length) {
+    fail(`${field}.states_changed does not count changed_states`);
+  }
+  return {
+    delta_price: delta,
+    price_new_car: price,
+    annual_replacement_rate: share(shock.annual_replacement_rate, `${field}.annual_replacement_rate`),
+    change_pct: finiteOrNull(shock.change_pct, `${field}.change_pct`),
+    implied_elasticity: finiteOrNull(shock.implied_elasticity, `${field}.implied_elasticity`),
+    first_year_rate: share(shock.first_year_rate, `${field}.first_year_rate`),
+    first_year_elasticity: finiteOrNull(shock.first_year_elasticity, `${field}.first_year_elasticity`),
+    projection: parseProjection(shock.projection, `${field}.projection`),
+    baseline_cumulative: finite(shock.baseline_cumulative, `${field}.baseline_cumulative`),
+    cumulative_elasticity: finiteOrNull(shock.cumulative_elasticity, `${field}.cumulative_elasticity`),
+    replacement_hazard: listOf(shock.replacement_hazard, nAge, `${field}.replacement_hazard`, shareOrNull),
+    states_changed: count as number,
+    changed_states: changed,
+    ...(truncated ? { changed_states_truncated: true } : {}),
+  };
+}
+
+/** Share of each age's grid states where the policy sells, every state weighted equally. */
+export function equalWeightSellShare(policy: readonly number[], dims: Dims): number[] {
+  const perAge = dims.nMpg * dims.nFuel * dims.nEcon;
+  const sell = ACTIONS.indexOf("sell") + 1;
+  return Array.from({ length: dims.nAge }, (_, ia) => {
+    let count = 0;
+    for (let s = ia * perAge; s < (ia + 1) * perAge; s++) if (policy[s] === sell) count++;
+    return count / perAge;
+  });
+}
+
+function parseCohorts(value: unknown, grids: Grids, dims: Dims, rows: StateRow[], policy: number[]): CohortsData {
+  const cohorts = record(value);
+  const ages = finiteArray(cohorts.ages, dims.nAge, "cohorts.ages");
+  if (ages.some((age, i) => age !== grids.age[i])) fail("cohorts.ages disagrees with grids.age");
+
+  const fleetShare = listOf(cohorts.fleet_share, dims.nAge, "cohorts.fleet_share", share);
+  const total = fleetShare.reduce((sum, x) => sum + x, 0);
+  if (Math.abs(total - 1) > SHARE_TOLERANCE * dims.nAge) fail("cohorts.fleet_share does not sum to 1");
+
+  const gridShare = listOf(cohorts.grid_share_sell, dims.nAge, "cohorts.grid_share_sell", share);
+  const expected = equalWeightSellShare(policy, dims);
+  gridShare.forEach((x, i) => {
+    if (Math.abs(x - expected[i]) > SHARE_TOLERANCE) fail(`cohorts.grid_share_sell[${i}] disagrees with the policy`);
+  });
+
+  const holding = cohorts.mean_holding_years;
+  if (holding !== null && !(typeof holding === "number" && Number.isFinite(holding) && holding > 0)) {
+    fail("cohorts.mean_holding_years is not a positive number or null");
+  }
+  if (!Array.isArray(cohorts.caveats) || cohorts.caveats.some((c) => typeof c !== "string")) {
+    fail("cohorts.caveats is not a list of strings");
+  }
+
+  return {
+    ages,
+    fleet_share: fleetShare,
+    replacement_hazard: listOf(cohorts.replacement_hazard, dims.nAge, "cohorts.replacement_hazard", shareOrNull),
+    grid_share_sell: gridShare,
+    annual_replacement_rate: share(cohorts.annual_replacement_rate, "cohorts.annual_replacement_rate"),
+    mean_holding_years: holding as number | null,
+    projection: parseProjection(cohorts.projection, "cohorts.projection"),
+    ...(cohorts.price_shock !== undefined && cohorts.price_shock !== null
+      ? { price_shock: parsePriceShock(cohorts.price_shock, dims.nAge, rows, policy) }
+      : {}),
+    caveats: (cohorts.caveats as string[]).slice(0, 20).map((c) => c.slice(0, 2000)),
+  };
+}
+
+/** The numeric entries of the engine's `params` echo (flags and lists are left out). */
+function parseParams(value: unknown): Record<string, number> {
+  if (!isRecord(value)) fail("params is not an object");
+  const entries = Object.entries(value)
+    .filter(([key, entry]) => /^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(key) && typeof entry === "number" && Number.isFinite(entry))
+    .slice(0, MAX_PARAMS);
+  return Object.fromEntries(entries) as Record<string, number>;
+}
+
 /** Validate the engine output (`raw.data`) and map it to SolveData. */
 export function adaptSolveData(value: unknown): SolveData {
   const data = record(value);
@@ -223,6 +402,18 @@ export function adaptSolveData(value: unknown): SolveData {
       ? (action as number)
       : fail(`policy[${i}] is not a 1-based action index`),
   );
+  if (data.actionlabels !== undefined && data.actionlabels !== null) {
+    if (
+      !Array.isArray(data.actionlabels) ||
+      data.actionlabels.length !== ACTIONS.length ||
+      data.actionlabels.some((label, i) => label !== ACTIONS[i])
+    ) {
+      fail("actionlabels is not [drive, sell, reduce]");
+    }
+  }
+  if (data.policy_index_base !== undefined && data.policy_index_base !== null && data.policy_index_base !== 1) {
+    fail("policy_index_base is not 1");
+  }
   const breakdown = Object.fromEntries(
     ACTIONS.map((action, i) => [action, policy.filter((entry) => entry === i + 1).length]),
   ) as Record<ActionName, number>;
@@ -275,11 +466,40 @@ export function adaptSolveData(value: unknown): SolveData {
     ...(data.query_state !== undefined && data.query_state !== null
       ? { query_state: parseQueryState(data.query_state, stateTable, policy) }
       : {}),
+    ...(data.params !== undefined && data.params !== null ? { params: parseParams(data.params) } : {}),
+    ...(data.cohorts !== undefined && data.cohorts !== null
+      ? { cohorts: parseCohorts(data.cohorts, grids, dims, stateTable, policy) }
+      : {}),
   };
 }
 
-/** Parse a `run_decision_model` tool result. Throws SolveToolError or SolveProtocolError. */
-export function adaptToolResult(result: unknown): AdaptedSolve {
+/**
+ * Check a run against the request it answers: the engine's `params` echo (when
+ * present) must hold the inputs that were sent, and a price-shock comparison
+ * must be for the change that was asked for.
+ */
+export function checkAgainstRequest(data: SolveData, request: SolveParameters): void {
+  if (data.params) {
+    for (const key of ECHOED_INPUTS) {
+      const sent = request[key];
+      if (sent !== undefined && key in data.params && data.params[key] !== sent) {
+        fail(`params.${key} disagrees with the request`);
+      }
+    }
+  }
+  const shock = data.cohorts?.price_shock;
+  if (shock && shock.delta_price !== request.price_shock) fail("cohorts.price_shock is for a different price change");
+  if (shock && request.PriceNewCar !== undefined && shock.price_new_car !== request.PriceNewCar + shock.delta_price) {
+    fail("cohorts.price_shock.price_new_car is not the requested price plus the change");
+  }
+  if (data.cohorts && !shock && request.price_shock) fail("cohorts.price_shock is missing for the price change asked for");
+}
+
+/**
+ * Parse a `run_decision_model` tool result. With `request`, also check the run
+ * against it (checkAgainstRequest). Throws SolveToolError or SolveProtocolError.
+ */
+export function adaptToolResult(result: unknown, request?: SolveParameters): AdaptedSolve {
   const tool = record(result);
   if (tool.isError === true) throw new SolveToolError(textOf(tool) ?? "The tool reported an error without detail.");
 
@@ -308,8 +528,10 @@ export function adaptToolResult(result: unknown): AdaptedSolve {
 
   const raw = record(envelope.raw);
   if (raw.status !== "success") fail("raw.status is not success");
+  const data = adaptSolveData(raw.data);
+  if (request) checkAgainstRequest(data, request);
   return {
-    data: adaptSolveData(raw.data),
+    data,
     attribution: envelope.attribution.trim().slice(0, 2000),
     warnings,
   };

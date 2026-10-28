@@ -259,3 +259,44 @@ test("the overall time budget aborts a slow call and reports a timeout", async (
     clearInterval(keepAlive);
   }
 });
+
+// ── Phase 2: cohort requests ────────────────────────────────────────────────
+
+const cohortsFixture = JSON.parse(readFileSync(new URL("./fixtures/ados-cohorts-run.json", import.meta.url), "utf8"));
+
+function cohortResult() {
+  const envelope = { ...structuredClone(fixture.envelope), raw: { status: "success", data: structuredClone(cohortsFixture.data) } };
+  return { content: [{ type: "text", text: JSON.stringify(envelope) }] };
+}
+
+test("a cohort request forwards the three switches and returns the cohort block", async () => {
+  const { handler, calls } = setup({ runModel: async () => cohortResult() });
+  const { status, body } = await read(await handler(post({ cohorts: true, price_shock: 1_000, projection_years: 10 })));
+  assert.equal(status, 200);
+  assert.deepEqual(calls[0].arguments.parameters, { cohorts: true, price_shock: 1_000, projection_years: 10 });
+  assert.equal(body.data.cohorts.price_shock.states_changed, 3);
+  assert.equal(body.data.cohorts.grid_share_sell[6], 0.75);
+});
+
+test("an engine without cohort output answers a cohort request with the plain result (no cohorts)", async () => {
+  const { handler } = setup();
+  const { status, body } = await read(await handler(post({ ...sample, cohorts: true, price_shock: 1_000 })));
+  assert.equal(status, 200);
+  assert.equal("cohorts" in body.data, false);
+});
+
+test("a run that answers a different price change than the one asked for is a protocol error, not figures", async () => {
+  const { handler, logs } = setup({ runModel: async () => cohortResult() });
+  const { status, body } = await read(await handler(post({ cohorts: true, price_shock: -1_000 })));
+  assert.equal(status, 502);
+  assert.deepEqual(body, { status: "error", reason: "protocol_error", message: FAILURES.protocol_error.message });
+  assert.match(logs[0], /different price change/);
+});
+
+test("out-of-range cohort switches are refused before any call", async () => {
+  const { handler, calls } = setup();
+  const { status, body } = await read(await handler(post({ cohorts: true, price_shock: 5_000 })));
+  assert.equal(status, 400);
+  assert.equal(body.message, "New-vehicle price change must be between -$3,000 and $3,000.");
+  assert.equal(calls.length, 0);
+});

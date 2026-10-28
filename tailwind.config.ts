@@ -1,65 +1,39 @@
 import type { Config } from "tailwindcss";
 
+/**
+ * Neutral slate palette (Tailwind's own) with one deep-blue accent, plus the
+ * three action colors. Action colors are a color-blind-safe blue / amber /
+ * teal set; every use pairs them with a letter or a pattern, and the text on
+ * each meets WCAG AA (white on drive 5.2:1, slate-900 on sell 8.3:1, white on
+ * reduce 5.5:1).
+ */
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        ink: {
-          50: "#fafaff",
-          100: "#f4f3fb",
-          200: "#e7e6f3",
-          300: "#cfcce0",
-          400: "#9d99b8",
-          500: "#6c6890",
-          600: "#46436a",
-          700: "#2d2b4c",
-          800: "#1b1a33",
-          900: "#0f0e22",
+        accent: {
+          50: "#eef2fb",
+          100: "#dbe3f6",
+          200: "#b6c6ea",
+          600: "#1e40af",
+          700: "#1e3a8a",
+          800: "#172e6e",
+          900: "#0f1f4d",
         },
-        approve: {
-          50: "#f4f1fe",
-          100: "#ebe5fe",
-          200: "#d6cafd",
-          300: "#b9a5fb",
-          400: "#9577f7",
-          500: "#7553f1",
-          600: "#5b3cea",
-          700: "#4f3deb",
-          800: "#3f2cc4",
-          900: "#33269c",
-        },
-        si: {
-          50: "#fff5ef",
-          100: "#ffe4d3",
-          200: "#fdc6a1",
-          300: "#f9a06a",
-          400: "#ee7f43",
-          500: "#e07555",
-          600: "#c25a3c",
-          700: "#9c4630",
-        },
-        amber: {
-          DEFAULT: "#f5b800",
-        },
-        coal: {
-          900: "#0c0c12",
-          800: "#13131c",
-          700: "#1c1c28",
-          600: "#262636",
-          500: "#3a3a4e",
+        action: {
+          drive: "#2563eb",
+          "drive-ink": "#ffffff",
+          sell: "#f59e0b",
+          "sell-edge": "#b45309",
+          "sell-ink": "#0f172a",
+          reduce: "#0f766e",
+          "reduce-ink": "#ffffff",
         },
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui"],
-        display: ["var(--font-display)", "ui-sans-serif", "system-ui"],
-        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular"],
-      },
-      boxShadow: {
-        soft: "0 1px 2px rgba(31,28,72,.04), 0 8px 24px -8px rgba(31,28,72,.10)",
-        lift: "0 1px 0 rgba(31,28,72,.04), 0 24px 48px -20px rgba(91,60,234,.25)",
-        ringPurple: "0 0 0 1px rgba(91,60,234,.20), 0 12px 30px -10px rgba(91,60,234,.35)",
-        ringCoral: "0 0 0 1px rgba(224,117,85,.30), 0 12px 30px -10px rgba(224,117,85,.45)",
+        sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
+        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
       },
     },
   },

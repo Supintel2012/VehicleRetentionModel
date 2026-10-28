@@ -1,146 +1,157 @@
-import type { Template } from "./types";
+import type { Field, FieldOption, Template } from "./types";
 
 /**
- * Vehicle Retention wizard template.
+ * The assumption fields of the analyst demo, and their mapping to the
+ * solve request.
  *
- * Maps interview answers onto ADOS 2026 v1c parameters. The "your vehicle"
- * step also drives the post-solve `query_state` lookup, so the user gets a
- * recommended action for their specific (age, mpg, fuel price, econ) point.
+ * "Owner profile" sets five ADOS 2026 v1c parameters; each default is the
+ * engine's own default (ModelInputs), so "Reset to defaults" reproduces the
+ * published default run. "Vehicle to inspect"
+ * picks one state of the default grid for the `query_state` lookup; its
+ * fields offer exactly the grid levels, so nothing is snapped silently. Every
+ * range here must also pass lib/solve-input.ts (a test checks both ends).
  */
+
+/** Levels of the engine's default state grid, which this page never changes. */
+export const DEFAULT_GRID = {
+  age: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  mpg: [26, 28, 30, 32],
+  fuel: [4, 4.5, 5, 5.5, 6],
+  econ: [90, 100, 110, 120],
+} as const;
+
+const options = (values: readonly number[], label: (value: number) => string): FieldOption[] =>
+  values.map((value) => ({ value, label: label(value) }));
+
+/** The top age level stands for that age or older. */
+export function ageLabel(age: number, topAge: number = DEFAULT_GRID.age[DEFAULT_GRID.age.length - 1]): string {
+  if (age >= topAge) return `${age} or older`;
+  return `${age} ${age === 1 ? "year" : "years"}`;
+}
+
+const OWNER_FIELDS: Field[] = [
+  {
+    id: "std_miles",
+    type: "number",
+    prompt: "Standard annual miles",
+    help: "Miles a year when the owner keeps driving as usual.",
+    min: 5_000,
+    max: 30_000,
+    step: 500,
+    default: 15_000,
+    unit: "miles",
+    paramKey: "StdMiles",
+  },
+  {
+    id: "reduced_miles",
+    type: "number",
+    prompt: "Reduced annual miles",
+    help: "Miles a year if the owner cuts back.",
+    min: 2_000,
+    max: 15_000,
+    step: 500,
+    default: 8_000,
+    unit: "miles",
+    paramKey: "ReducedMiles",
+  },
+  {
+    id: "new_car_price",
+    type: "number",
+    prompt: "New-vehicle price",
+    min: 20_000,
+    max: 80_000,
+    step: 1_000,
+    default: 43_000,
+    unit: "$",
+    paramKey: "PriceNewCar",
+  },
+  {
+    id: "fixed_cost",
+    type: "number",
+    prompt: "Insurance and property tax",
+    help: "Per year.",
+    min: 1_000,
+    max: 6_000,
+    step: 100,
+    default: 2_500,
+    unit: "$",
+    paramKey: "FixedCost",
+  },
+  {
+    id: "discount_rate",
+    type: "number",
+    prompt: "Annual discount rate",
+    min: 1,
+    max: 15,
+    step: 0.5,
+    default: 5,
+    unit: "%",
+    paramKey: "d.scaled_pct",
+  },
+];
+
+const VEHICLE_FIELDS: Field[] = [
+  {
+    id: "vehicle_age",
+    type: "select",
+    prompt: "Vehicle age",
+    options: options(DEFAULT_GRID.age, (age) => ageLabel(age)),
+    min: 0,
+    max: 10,
+    step: 1,
+    default: 5,
+    paramKey: "query_state.age",
+  },
+  {
+    id: "vehicle_mpg",
+    type: "select",
+    prompt: "Fuel economy",
+    options: options(DEFAULT_GRID.mpg, (mpg) => `${mpg} mpg`),
+    min: 26,
+    max: 32,
+    step: 2,
+    default: 28,
+    paramKey: "query_state.fuel_economy",
+  },
+  {
+    id: "fuel_price_now",
+    type: "select",
+    prompt: "Fuel price",
+    options: options(DEFAULT_GRID.fuel, (price) => `$${price.toFixed(2)} a gallon`),
+    min: 4,
+    max: 6,
+    step: 0.5,
+    default: 5.5,
+    paramKey: "query_state.fuel_price",
+  },
+  {
+    id: "econ_now",
+    type: "select",
+    prompt: "Economic index",
+    help: "Higher values represent stronger economic conditions.",
+    options: options(DEFAULT_GRID.econ, String),
+    min: 90,
+    max: 120,
+    step: 10,
+    default: 100,
+    paramKey: "query_state.econ_condition",
+  },
+];
+
 export const VEHICLE_RETENTION_TEMPLATE: Template = {
-  slug: "vehicle_retention",
-  name: "Vehicle Retention Model",
-  category: "ADOS 2026 v1c · Auto Drive-or-Sell™",
-  summary:
-    "Rapid Recursive® sequential decision model for drive, sell, or reduce choices across new-vehicle costs, fuel economy, fuel prices, and economic conditions (ADOS 2026 v1c).",
-  horizon: "Sequential vehicle retention (infinite horizon)",
-  default_state_count: 880,
+  name: "Auto Drive-or-Sell™ · ADOS 2026 v1c",
   steps: [
+    { id: "owner", title: "Owner profile", questions: OWNER_FIELDS },
     {
       id: "vehicle",
-      title: "Your vehicle",
-      intro: "Tell us about the car you're deciding what to do with.",
-      questions: [
-        {
-          id: "vehicle_age",
-          type: "scale",
-          prompt: "How old is the vehicle?",
-          help: "0 = brand new, 10 = oldest on the default grid.",
-          min: 0,
-          max: 10,
-          default: 5,
-          unit: "years",
-          required: true,
-          paramKey: "query_state.age",
-        },
-        {
-          id: "vehicle_mpg",
-          type: "number",
-          prompt: "What's its real-world fuel economy?",
-          help: "Average mpg across your typical driving.",
-          min: 26,
-          max: 32,
-          step: 0.5,
-          default: 28,
-          unit: "mpg",
-          required: true,
-          paramKey: "query_state.fuel_economy",
-        },
-      ],
-    },
-    {
-      id: "market",
-      title: "Market conditions",
-      intro: "Where fuel prices and the broader economy currently sit.",
-      questions: [
-        {
-          id: "fuel_price_now",
-          type: "number",
-          prompt: "What's gas costing right now?",
-          min: 4.0,
-          max: 6.0,
-          step: 0.1,
-          default: 5.5,
-          unit: "$/gal",
-          required: true,
-          paramKey: "query_state.fuel_price",
-        },
-        {
-          id: "econ_now",
-          type: "scale",
-          prompt: "Economic conditions index",
-          help: "100 = normal · <100 weakening · >100 strong.",
-          min: 90,
-          max: 120,
-          default: 100,
-          required: true,
-          paramKey: "query_state.econ_condition",
-        },
-      ],
-    },
-    {
-      id: "assumptions",
-      title: "Cost assumptions",
-      intro:
-        "Override the ADOS 2026 v1c defaults if your situation is different. Skip if you trust the defaults.",
-      questions: [
-        {
-          id: "std_miles",
-          type: "number",
-          prompt: "Annual miles if you drive normally",
-          min: 5000,
-          max: 30000,
-          step: 500,
-          default: 15000,
-          unit: "mi/yr",
-          paramKey: "StdMiles",
-        },
-        {
-          id: "reduced_miles",
-          type: "number",
-          prompt: "Annual miles if you cut back",
-          min: 2000,
-          max: 15000,
-          step: 500,
-          default: 12000,
-          unit: "mi/yr",
-          paramKey: "ReducedMiles",
-        },
-        {
-          id: "new_car_price",
-          type: "currency",
-          prompt: "Replacement vehicle sticker price",
-          min: 20000,
-          max: 80000,
-          step: 1000,
-          default: 43000,
-          unit: "$",
-          paramKey: "PriceNewCar",
-        },
-        {
-          id: "fixed_cost",
-          type: "currency",
-          prompt: "Annual insurance + property tax",
-          min: 1000,
-          max: 6000,
-          step: 100,
-          default: 2500,
-          unit: "$/yr",
-          paramKey: "FixedCost",
-        },
-        {
-          id: "discount_rate",
-          type: "scale",
-          prompt: "Annual discount rate (×100)",
-          help: "5 means a 5% personal discount rate.",
-          min: 1,
-          max: 15,
-          default: 5,
-          paramKey: "d.scaled_pct",
-        },
-      ],
+      title: "Vehicle to inspect",
+      intro: "One state of the model's grid, used for the recommendation and outlined on the policy map.",
+      questions: VEHICLE_FIELDS,
     },
   ],
+  // Worked example the route tests send. Its economic index (95) lies between
+  // two grid levels on purpose: the engine matches it to the nearest level,
+  // and a tie goes to the lower one (90).
   sample_answers: {
     vehicle_age: 7,
     vehicle_mpg: 28,
@@ -154,7 +165,18 @@ export const VEHICLE_RETENTION_TEMPLATE: Template = {
   },
 };
 
-/** Build the JSON request body the proxy will forward to the API. */
+export type Answers = Record<string, number>;
+
+/** Every field at its default value. */
+export function defaultAnswers(template: Template = VEHICLE_RETENTION_TEMPLATE): Answers {
+  const answers: Answers = {};
+  for (const group of template.steps) {
+    for (const field of group.questions) if (field.default !== undefined) answers[field.id] = field.default;
+  }
+  return answers;
+}
+
+/** Build the JSON request body for the solve route from the field values. */
 export function buildSolveBody(
   template: Template,
   answers: Record<string, string | number | boolean>,
@@ -186,4 +208,21 @@ export function buildSolveBody(
     body.query_state = queryState;
   }
   return body;
+}
+
+/** Years in the cohort projection the page asks for; its cumulative elasticity covers these years. */
+export const PROJECTION_YEARS = 10;
+
+/**
+ * The page's solve request: the panel's values plus the cohort output and,
+ * for a non-zero price change, the price-shock comparison. One request serves
+ * every tab.
+ */
+export function buildRunBody(answers: Answers, priceShock: number): Record<string, unknown> {
+  return {
+    ...buildSolveBody(VEHICLE_RETENTION_TEMPLATE, answers),
+    cohorts: true,
+    projection_years: PROJECTION_YEARS,
+    ...(priceShock !== 0 ? { price_shock: priceShock } : {}),
+  };
 }

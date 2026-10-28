@@ -166,7 +166,7 @@ export function createSolveHandler(options: SolveHandlerOptions): (request: Requ
         arguments: { model_name: MODEL_NAME, parameters },
         signal: AbortSignal.any([request.signal, AbortSignal.timeout(timeoutMs)]),
       });
-      const { data, attribution, warnings } = adaptToolResult(result);
+      const { data, attribution, warnings } = adaptToolResult(result, parameters);
       const body: SolveResponse = { status: "success", data, attribution, warnings };
       return Response.json(body, { headers: { "Cache-Control": "no-store" } });
     } catch (error) {

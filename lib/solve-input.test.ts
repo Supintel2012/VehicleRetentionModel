@@ -21,10 +21,10 @@ function rejects(body: unknown, message: RegExp) {
   });
 }
 
-test("the wizard's default answers pass and map to exactly the expected parameters", () => {
+test("the panel's default values (the engine's own defaults) pass and map to exactly the expected parameters", () => {
   assert.deepEqual(parseSolveRequest(buildSolveBody(template, defaultAnswers())), {
     StdMiles: 15_000,
-    ReducedMiles: 12_000,
+    ReducedMiles: 8_000,
     PriceNewCar: 43_000,
     FixedCost: 2_500,
     d: 0.05,
@@ -53,18 +53,34 @@ test("an empty body runs the engine defaults; cleared cost fields are simply omi
 });
 
 test("every slider and number range the wizard offers is accepted at both ends and rejected just outside", () => {
+  // Each end of a mileage range is tried with the other mileage at the end that keeps reduced below standard.
+  const partner: Record<string, Record<string, number>> = { std_miles: { reduced_miles: 2_000 }, reduced_miles: { std_miles: 30_000 } };
   for (const step of template.steps) {
     for (const q of step.questions) {
       const { id, min, max, paramKey } = q;
       if (!paramKey || min === undefined || max === undefined) continue;
       const increment = q.step ?? 1;
-      const body = (value: number) => buildSolveBody(template, { ...defaultAnswers(), [id]: value });
+      const body = (value: number) => buildSolveBody(template, { ...defaultAnswers(), ...partner[id], [id]: value });
       assert.doesNotThrow(() => parseSolveRequest(body(min)), `${id} = min`);
       assert.doesNotThrow(() => parseSolveRequest(body(max)), `${id} = max`);
-      assert.throws(() => parseSolveRequest(body(min - increment)), SolveInputError, `${id} below min`);
-      assert.throws(() => parseSolveRequest(body(max + increment)), SolveInputError, `${id} above max`);
+      assert.throws(() => parseSolveRequest(body(min - increment)), /must be between/, `${id} below min`);
+      assert.throws(() => parseSolveRequest(body(max + increment)), /must be between/, `${id} above max`);
     }
   }
+});
+
+test("reduced miles must be below standard miles, with the engine default standing in for a mileage left out", () => {
+  rejects(
+    { StdMiles: 5_000, ReducedMiles: 15_000 },
+    /^Annual miles if you cut back \(15,000 miles\) must be less than annual miles if you drive normally \(5,000 miles\)\.$/,
+  );
+  rejects({ StdMiles: 10_000, ReducedMiles: 10_000 }, /must be less than/);
+  // Left out, a mileage is the engine default: standard 15,000, reduced 8,000.
+  rejects({ ReducedMiles: 15_000 }, /\(15,000 miles\) must be less than annual miles if you drive normally \(15,000 miles\)/);
+  rejects({ StdMiles: 8_000 }, /\(8,000 miles\) must be less than annual miles if you drive normally \(8,000 miles\)/);
+  assert.deepEqual(parseSolveRequest({ StdMiles: 5_000, ReducedMiles: 4_500 }), { StdMiles: 5_000, ReducedMiles: 4_500 });
+  assert.deepEqual(parseSolveRequest({ ReducedMiles: 14_500 }), { ReducedMiles: 14_500 });
+  assert.deepEqual(parseSolveRequest({ StdMiles: 8_500 }), { StdMiles: 8_500 });
 });
 
 test("grid-size, probability and output keys are rejected, never forwarded", () => {
@@ -112,4 +128,59 @@ test("the body and the vehicle state must be objects, and the state must be comp
   for (const body of [null, [], "StdMiles=15000", 15_000, true]) rejects(body, /^The request body must be a JSON object\.$/);
   rejects({ query_state: [7, 28, 5.5, 95] }, /vehicle state must include/);
   rejects({ query_state: { age: 7, fuel_economy: 28, fuel_price: 5.5 } }, /^Economic conditions index is required\.$/);
+});
+
+// ── Phase 2: fleet-output switches ──────────────────────────────────────────
+
+test("the cohort switches pass: cohorts true/false, a whole-dollar price change within ±$3,000, 1-20 projection years", () => {
+  assert.deepEqual(parseSolveRequest({ cohorts: true, price_shock: 1_000, projection_years: 10 }), {
+    cohorts: true,
+    price_shock: 1_000,
+    projection_years: 10,
+  });
+  assert.deepEqual(parseSolveRequest({ cohorts: false }), { cohorts: false });
+  for (const price_shock of [-3_000, -250, 0, 250, 3_000]) {
+    assert.deepEqual(parseSolveRequest({ price_shock }), { price_shock });
+  }
+  for (const projection_years of [1, 20]) assert.deepEqual(parseSolveRequest({ projection_years }), { projection_years });
+});
+
+test("the page's own request (defaults plus cohorts and a +$1,000 change) maps to exactly these parameters", () => {
+  const body = { ...buildSolveBody(template, defaultAnswers()), cohorts: true, price_shock: 1_000, projection_years: 10 };
+  assert.deepEqual(parseSolveRequest(body), {
+    StdMiles: 15_000,
+    ReducedMiles: 8_000,
+    PriceNewCar: 43_000,
+    FixedCost: 2_500,
+    d: 0.05,
+    query_state: { age: 5, fuel_economy: 28, fuel_price: 5.5, econ_condition: 100 },
+    cohorts: true,
+    price_shock: 1_000,
+    projection_years: 10,
+  });
+});
+
+test("price changes and projection lengths outside their ranges, or not whole, are refused", () => {
+  rejects({ price_shock: 3_001 }, /^New-vehicle price change must be between -\$3,000 and \$3,000\.$/);
+  rejects({ price_shock: -3_250 }, /^New-vehicle price change must be between -\$3,000 and \$3,000\.$/);
+  rejects({ price_shock: 0.5 }, /^New-vehicle price change must be a whole number of dollars\.$/);
+  rejects({ price_shock: 1e-12 }, /whole number of dollars/);
+  rejects({ projection_years: 0 }, /^Projection length must be between 1 year and 20 years\.$/);
+  rejects({ projection_years: 21 }, /^Projection length must be between 1 year and 20 years\.$/);
+  rejects({ projection_years: 50 }, /between 1 year and 20 years/);
+  rejects({ projection_years: 2.5 }, /^Projection length must be a whole number of years\.$/);
+});
+
+test("the cohort switches must have the right JSON types", () => {
+  for (const cohorts of ["true", 1, 0, null, {}]) rejects({ cohorts }, /^The cohort setting must be true or false\.$/);
+  for (const price_shock of ["1000", null, true, Number.NaN, Number.POSITIVE_INFINITY]) {
+    rejects({ price_shock }, /^New-vehicle price change must be a number\.$/);
+  }
+  rejects({ projection_years: "10" }, /^Projection length must be a number\.$/);
+});
+
+test("the engine's other cohort input, a starting fleet, is still refused, as are output flags next to cohorts", () => {
+  rejects({ cohorts: true, fleet_age_distribution: Array(11).fill(1 / 11) }, /"fleet_age_distribution" is not an input this demo accepts/);
+  rejects({ cohorts: true, return_full_arrays: true }, /"return_full_arrays" is not an input/);
+  rejects({ cohorts: true, Cohorts: true }, /"Cohorts" is not an input/);
 });

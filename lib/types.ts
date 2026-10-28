@@ -1,68 +1,52 @@
 /**
- * Wizard + API types for the Vehicle Retention Model app.
- *
- * Adapted from the RR Toolbox enterprise wizard, with the Approveit /
- * routing / handoff types stripped out — this app only solves the MDP and
- * shows the resulting policy + value function.
+ * Types for the Auto Drive-or-Sell™ (ADOS 2026 v1c) analyst demo: the
+ * assumption fields the page offers, and the solve response the route
+ * returns (mirroring RRToolbox.templates.AutoDriveOrSell).
  */
 
-export type QuestionType =
-  | "select"
-  | "number"
-  | "currency"
-  | "scale"
-  | "boolean";
+// ── Assumption fields ───────────────────────────────────────────────────────
 
-export type Reveal =
-  | { questionId: string; equals: string | number | boolean }
-  | { questionId: string; in: (string | number)[] }
-  | { questionId: string; gt: number }
-  | { questionId: string; lt: number };
+export type FieldType = "number" | "select";
 
-export interface QuestionOption {
-  value: string;
+export interface FieldOption {
+  value: number;
   label: string;
-  description?: string;
 }
 
-export interface Question {
+export interface Field {
   id: string;
-  type: QuestionType;
+  type: FieldType;
   prompt: string;
   help?: string;
-  /** Maps the answer value into a parameter on the API request body. */
+  /** Request-body key the value maps to ("query_state.<key>" and "d.scaled_pct" are mapped specially). */
   paramKey?: string;
-  options?: QuestionOption[];
+  /** Grid levels for a select field. */
+  options?: FieldOption[];
+  /** Range the field accepts (for a select, its first and last level). */
   min?: number;
   max?: number;
+  /** Input step (for a select, the spacing between levels). */
   step?: number;
   unit?: string;
-  default?: string | number | boolean;
-  revealsIf?: Reveal;
-  required?: boolean;
+  default?: number;
 }
 
-export interface WizardStep {
+export interface FieldGroup {
   id: string;
   title: string;
   intro?: string;
-  questions: Question[];
+  questions: Field[];
 }
 
 export interface Template {
-  slug: string;
   name: string;
-  category: string;
-  summary: string;
-  horizon: string;
-  steps: WizardStep[];
-  /** Sample answers used by the "Run sample answers" button. */
+  /** Field groups, in panel order. */
+  steps: FieldGroup[];
+  /** Worked example used by the route tests (see template.ts). */
   sample_answers: Record<string, string | number | boolean>;
-  /** Default state count once the grid is built — for the live state panel. */
-  default_state_count: number;
 }
 
-// ── API response shape (mirrors RRToolbox.templates.VehicleRetentionModel) ──
+// ── API response shape (mirrors RRToolbox.templates.AutoDriveOrSell) ────────
 
 export type ActionName = "drive" | "sell" | "reduce";
 
@@ -105,6 +89,63 @@ export interface QueryStateResult {
   value: number;
 }
 
+/** Purchases per vehicle in each projected year, from the model's own Markov chain. */
+export interface CohortProjection {
+  /** "steady_state", or "supplied" when a starting fleet was given. */
+  start: string;
+  years: number[];
+  replacement_rate: number[];
+  cumulative: number;
+}
+
+/** A state whose optimal action differs between the baseline and the price-shock solve. */
+export interface ChangedState {
+  state_id: number;
+  age: number;
+  fuel_economy: number;
+  fuel_price: number;
+  econ_condition: number;
+  from: ActionName;
+  to: ActionName;
+}
+
+/** The same fleet figures after re-solving at PriceNewCar + delta_price. */
+export interface PriceShockResult {
+  delta_price: number;
+  price_new_car: number;
+  annual_replacement_rate: number;
+  /** Percent change in the steady-state replacement rate. */
+  change_pct: number | null;
+  implied_elasticity: number | null;
+  first_year_rate: number;
+  first_year_elasticity: number | null;
+  projection: CohortProjection;
+  baseline_cumulative: number;
+  cumulative_elasticity: number | null;
+  replacement_hazard: (number | null)[];
+  /** Number of states whose best action switches (all of them, even when the list is cut short). */
+  states_changed: number;
+  changed_states: ChangedState[];
+  /** Set when the service listed only the first of the switching states. */
+  changed_states_truncated?: true;
+}
+
+/** Opt-in fleet output (`cohorts: true`) of the RR Toolbox engine. Older engines omit it. */
+export interface CohortsData {
+  ages: number[];
+  /** Steady-state share of the fleet at each age (sums to 1). */
+  fleet_share: number[];
+  /** Share of the vehicles at each age that are replaced; null where no vehicles reach that age. */
+  replacement_hazard: (number | null)[];
+  /** Share of the grid states at each age where selling is optimal, every state weighted equally. */
+  grid_share_sell: number[];
+  annual_replacement_rate: number;
+  mean_holding_years: number | null;
+  projection: CohortProjection;
+  price_shock?: PriceShockResult;
+  caveats: string[];
+}
+
 export interface SolveData {
   summary: SolveSummary;
   grids: { age: number[]; mpg: number[]; fuel: number[]; econ: number[] };
@@ -115,6 +156,9 @@ export interface SolveData {
   policy: number[];
   value: number[];
   query_state?: QueryStateResult;
+  /** The numeric inputs the engine reports it used (engines that echo `params` only). */
+  params?: Record<string, number>;
+  cohorts?: CohortsData;
 }
 
 export interface SolveResponse {
