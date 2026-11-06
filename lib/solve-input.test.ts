@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { buildSolveBody, VEHICLE_RETENTION_TEMPLATE } from "./template.ts";
-import { parseSolveRequest, SolveInputError } from "./solve-input.ts";
+import { parseMarketRequest, parseRequest, parseSolveRequest, SolveInputError } from "./solve-input.ts";
 
 const template = VEHICLE_RETENTION_TEMPLATE;
 
@@ -75,12 +75,13 @@ test("reduced miles must be below standard miles, with the engine default standi
     /^Annual miles if you cut back \(15,000 miles\) must be less than annual miles if you drive normally \(5,000 miles\)\.$/,
   );
   rejects({ StdMiles: 10_000, ReducedMiles: 10_000 }, /must be less than/);
-  // Left out, a mileage is the engine default: standard 15,000, reduced 8,000.
+  // Left out, a mileage is the engine default: standard 15,000, reduced 12,000 (the v2d sheet).
   rejects({ ReducedMiles: 15_000 }, /\(15,000 miles\) must be less than annual miles if you drive normally \(15,000 miles\)/);
-  rejects({ StdMiles: 8_000 }, /\(8,000 miles\) must be less than annual miles if you drive normally \(8,000 miles\)/);
+  rejects({ StdMiles: 8_000 }, /\(12,000 miles\) must be less than annual miles if you drive normally \(8,000 miles\)/);
+  rejects({ StdMiles: 12_000 }, /must be less than/);
   assert.deepEqual(parseSolveRequest({ StdMiles: 5_000, ReducedMiles: 4_500 }), { StdMiles: 5_000, ReducedMiles: 4_500 });
   assert.deepEqual(parseSolveRequest({ ReducedMiles: 14_500 }), { ReducedMiles: 14_500 });
-  assert.deepEqual(parseSolveRequest({ StdMiles: 8_500 }), { StdMiles: 8_500 });
+  assert.deepEqual(parseSolveRequest({ StdMiles: 12_500 }), { StdMiles: 12_500 });
 });
 
 test("grid-size, probability and output keys are rejected, never forwarded", () => {
@@ -105,7 +106,7 @@ test("out-of-range values get a plain-language message with the allowed range", 
   const state = { age: 5, fuel_economy: 28, fuel_price: 5, econ_condition: 100 };
   rejects({ query_state: { ...state, age: 11 } }, /^Vehicle age must be between 0 years and 10 years\.$/);
   rejects({ query_state: { ...state, fuel_economy: 25.9 } }, /^Fuel economy must be between 26 mpg and 32 mpg\.$/);
-  rejects({ query_state: { ...state, fuel_price: 6.01 } }, /^Fuel price must be between \$4\.00 per gallon and \$6\.00 per gallon\.$/);
+  rejects({ query_state: { ...state, fuel_price: 7.01 } }, /^Fuel price must be between \$4\.00 per gallon and \$7\.00 per gallon\.$/);
   rejects({ query_state: { ...state, econ_condition: 89 } }, /^Economic conditions index must be between 90 and 120\.$/);
 });
 
@@ -183,4 +184,33 @@ test("the engine's other cohort input, a starting fleet, is still refused, as ar
   rejects({ cohorts: true, fleet_age_distribution: Array(11).fill(1 / 11) }, /"fleet_age_distribution" is not an input this demo accepts/);
   rejects({ cohorts: true, return_full_arrays: true }, /"return_full_arrays" is not an input/);
   rejects({ cohorts: true, Cohorts: true }, /"Cohorts" is not an input/);
+});
+
+test("a market run accepts the mix and the fleet switches, and nothing else", () => {
+  const mix = { ECO: 0.12, ENT: 0.18, MID: 0.25, PKP: 0.22, LUX: 0.1, LSUV: 0.09, EXO: 0.04 };
+  assert.deepEqual(parseRequest({ market_shares: mix, cohorts: true, projection_years: 10, price_shock: 1_000 }), {
+    market_shares: mix,
+    cohorts: true,
+    price_shock: 1_000,
+    projection_years: 10,
+  });
+  assert.deepEqual(parseMarketRequest({ market_shares: { MID: 1 }, cohorts: true }), { market_shares: { MID: 1 }, cohorts: true });
+  // Without the fleet output the engine returns value functions only, which the page cannot draw: refused before the call.
+  for (const cohorts of [undefined, false, "true", 1]) {
+    assert.throws(() => parseRequest({ market_shares: mix, cohorts }), /A market run needs the fleet output: set cohorts to true\./);
+  }
+  // The engine refuses the cohort inputs beside market_shares; so does the route, before the call.
+  for (const extra of [{ PriceNewCar: 50_000 }, { StdMiles: 15_000 }, { d: 0.05 }, { FixedCost: 2_500 }, { query_state: { age: 5 } }]) {
+    assert.throws(() => parseRequest({ market_shares: mix, ...extra }), /is not an input of a market run/);
+  }
+  assert.throws(() => parseRequest({ market_shares: { SUV: 1 } }), /"SUV" is not a buyer cohort/);
+  assert.throws(() => parseRequest({ market_shares: { ECO: 0.5, MID: 0.4 } }), /must add up to 1/);
+  assert.throws(() => parseRequest({ market_shares: {} }), /at least one buyer cohort/);
+  assert.throws(() => parseRequest({ market_shares: { ECO: "0.5", MID: 0.5 } }), /ECO share must be a number/);
+  assert.throws(() => parseRequest({ market_shares: { ECO: 1.5, MID: -0.5 } }), /ECO share must be a number from 0 to 1/);
+  assert.throws(() => parseRequest({ market_shares: mix, cohorts: true, price_shock: 5_000 }), /must be between/);
+  assert.throws(() => parseRequest({ market_shares: [0.5, 0.5] }), /must give each buyer cohort its share/);
+  // A single-cohort body still goes the single way, and market_shares is not one of its inputs.
+  assert.deepEqual(parseRequest({ d: 0.05 }), { d: 0.05 });
+  rejects({ market_shares: mix }, /"market_shares" is not an input this demo accepts/);
 });

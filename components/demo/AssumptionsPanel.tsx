@@ -152,11 +152,14 @@ export function AssumptionsPanel({
   onChange,
   onReset,
   status,
+  note,
 }: {
   answers: Answers;
   onChange: (id: string, value: number) => void;
   onReset: () => void;
   status: SolveStatus;
+  /** A line shown above the fields when the open screen does not read them. */
+  note?: string;
 }) {
   const [open, setOpen] = useState(false);
   const bodyId = useId();
@@ -199,6 +202,7 @@ export function AssumptionsPanel({
           </button>
         </div>
         <div id={bodyId} className={clsx("mt-4 space-y-5", open ? "block" : "hidden lg:block")}>
+          {note && <p className="rounded-sm border-l-4 border-accent-600 bg-accent-50 px-3 py-2 text-sm leading-snug text-slate-800">{note}</p>}
           {template.steps.map((group) => (
             <fieldset key={group.id} className="space-y-3">
               <legend className="eyebrow mb-1">{group.title}</legend>
@@ -218,7 +222,7 @@ export function AssumptionsPanel({
               Reset to defaults
             </button>
             <p className="text-xs leading-snug text-slate-500">
-              The defaults are the ADOS 2026 v1c values, except reduced miles (12,000 here; the engine uses 8,000). All values are illustrative and uncalibrated. A typed value is used when
+              The defaults are the ADOS 2026 values for the midsize cohort. All values are illustrative and uncalibrated. A typed value is used when
               you press Enter or leave the field, and the model is then solved again.
             </p>
           </div>

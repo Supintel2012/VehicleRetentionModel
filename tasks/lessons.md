@@ -109,3 +109,40 @@
   "0.00%, 0.00%, -0.00%" (a hyphen, not a minus). Give fitted axes a minimum
   span and a floor, drop repeated labels, never format a negative zero, and
   say in words when there is nothing to draw.
+
+## 2026-11-06 — Buyer cohorts screen and SI design
+
+- **A hidden label inside a scrolling table widens the whole page.** `.visually-hidden`
+  is `position: absolute`; inside an `overflow-x-auto` panel it is positioned against
+  the page, lands at the cell's x in the unscrolled table and adds to the document's
+  scroll width (714 px on a 390 px phone). Give such a label a positioned parent.
+  Measure `document.documentElement.scrollWidth` on a phone viewport for every new
+  screen, not only the elements' widths.
+- **A fixture-driven shim must derive what the engine derives.** A hard-coded
+  `query_state` for one grid broke every single-cohort screen as soon as the shim
+  served the v1c fixture; compute the matched state from the request and the fixture's
+  own grids, as the engine does.
+- **Parallel shell calls share one working directory.** Two tool calls that each
+  `cd` into a different repo raced and one ran in the other's directory ("No such
+  file"). Use absolute paths or `git -C` in anything that may run beside another call.
+- **A patch script must write before it can fail.** A multi-replacement script that
+  asserted every match and wrote the file at the end lost all its edits when the last
+  assertion failed on a string from another repo. Assert and write per file, or write
+  before the cross-file step.
+
+## 2026-11-06 — Buyer cohorts review
+
+- **A table of fixed inputs is a claim about the run; check it against the echo.** The
+  cohort table showed `VEHICLE_CLASSES` and the 12% trade-in share from `lib/market.ts`
+  while the adapter kept each class's echoed `params` without comparing them. Whatever
+  the page states as the inputs of a run, read it from the response or refuse a response
+  that disagrees, as the single-cohort adapter does with `ECHOED_INPUTS`.
+- **A control shared across screens is a request on every screen that reads it.** One
+  `delta` for the scenario and the buyer-cohorts screens meant a $250 step on the cohorts
+  screen also re-solved the single-cohort request, which that screen never shows. Give
+  each screen the state that shapes its own request, or count the requests a step costs
+  on every screen that shares the control.
+- **Refuse in the route what the adapter will refuse after the call.** A market request
+  without `cohorts: true` was forwarded, solved, and then failed on
+  `aggregate.cohorts is missing`. Every shape the adapter cannot render should be an
+  input error before the engine runs.

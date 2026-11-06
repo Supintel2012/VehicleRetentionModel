@@ -3,14 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import clsx from "clsx";
 import { signedDollars } from "@/lib/format";
+import { buildMarketBody, defaultMix, mixIsComplete, type MarketMix } from "@/lib/market";
 import { parseElasticity } from "@/lib/scenario";
 import { baselineRequest, baselineState, fallbackRequest, requestKey, solveStatus, type Answered } from "@/lib/solve-plan";
 import { defaultAnswers, type Answers } from "@/lib/template";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { AssumptionsPanel, assumptionSummary } from "./AssumptionsPanel";
-import { useLatestSolve, type SolvedRun, type SolveState } from "./useSolve";
+import type { VehicleClassTag } from "@/lib/types";
+import { useLatestMarketSolve, useLatestSolve, type SolvedRun, type SolveState } from "./useSolve";
 import { useTabState } from "./useTab";
 import { ClaudeTab } from "./tabs/ClaudeTab";
+import { CohortsTab } from "./tabs/CohortsTab";
 import { MethodTab } from "./tabs/MethodTab";
 import { PolicyMapTab } from "./tabs/PolicyMapTab";
 import { QuestionTab } from "./tabs/QuestionTab";
@@ -19,6 +22,7 @@ import { DEFAULT_PRICE_CHANGE, ScenarioTab } from "./tabs/ScenarioTab";
 
 const TABS = [
   { id: "question", label: "The question" },
+  { id: "cohorts", label: "Buyer cohorts" },
   { id: "policy-map", label: "Policy map" },
   { id: "replacement", label: "Replacement by age" },
   { id: "scenario", label: "Regulatory cost scenario" },
@@ -51,7 +55,7 @@ function TabList({ selected, onSelect }: { selected: TabId; onSelect: (id: TabId
     refs.current[TABS[next].id]?.focus();
   }
   return (
-    <div role="tablist" aria-label="Demonstration screens" className="no-print grid grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-6">
+    <div role="tablist" aria-label="Demonstration screens" className="no-print grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-7">
       {TABS.map((tab, index) => {
         const active = tab.id === selected;
         return (
@@ -123,6 +127,22 @@ export function DemoApp() {
   const [tab, selectTab] = useTabState(TAB_IDS, "question");
   useOpenDetailsForPrint();
 
+  // The buyer-cohorts screen: one market run, started the first time the screen is opened and kept after.
+  // It has its own price change: sharing the scenario's would re-solve the single-cohort request on every step here.
+  const [mix, setMix] = useState<MarketMix>(() => defaultMix());
+  const [marketDelta, setMarketDelta] = useState(DEFAULT_PRICE_CHANGE);
+  const [cohortsOpened, setCohortsOpened] = useState(false);
+  useEffect(() => {
+    if (tab === "cohorts") setCohortsOpened(true);
+  }, [tab]);
+  const marketBody = useMemo(
+    () => (cohortsOpened && mixIsComplete(mix) ? buildMarketBody(mix, marketDelta) : null),
+    [cohortsOpened, mix, marketDelta],
+  );
+  const market = useLatestMarketSolve(marketBody);
+  const onMix = useCallback((tag: VehicleClassTag, value: number) => setMix((m) => ({ ...m, [tag]: value })), []);
+  const onResetMix = useCallback(() => setMix(defaultMix()), []);
+
   // The engine that last answered decides whether a price change needs a baseline solve (see lib/solve-plan.ts).
   const [answered, setAnswered] = useState<Answered | null>(null);
   const body = useMemo(() => baselineRequest(answers, delta, answered), [answers, delta, answered]);
@@ -160,14 +180,21 @@ export function DemoApp() {
     <>
       <main className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[18.5rem_minmax(0,1fr)]" data-print-full>
-          <AssumptionsPanel answers={answers} onChange={onChange} onReset={onReset} status={tab === "scenario" && shocked ? solveStatus(main, fallback) : solveStatus(shown)} />
+          <AssumptionsPanel
+            answers={answers}
+            onChange={onChange}
+            onReset={onReset}
+            status={tab === "cohorts" ? solveStatus(market) : tab === "scenario" && shocked ? solveStatus(main, fallback) : solveStatus(shown)}
+            note={tab === "cohorts" ? "The buyer-cohorts screen uses the seven calibrated cohort rows, not this owner profile." : undefined}
+          />
           <div className="min-w-0 space-y-5">
             <TabList selected={tab} onSelect={selectTab} />
             <div className="print-only space-y-1 border-b border-slate-300 pb-3 text-sm text-slate-800">
               <p className="font-semibold">{current.label}</p>
-              <p>Owner profile: {summary.owner}.</p>
-              <p>Vehicle to inspect: {summary.vehicle}.</p>
+              {tab !== "cohorts" && <p>Owner profile: {summary.owner}.</p>}
+              {tab !== "cohorts" && <p>Vehicle to inspect: {summary.vehicle}.</p>}
               {tab === "scenario" && <p>New-vehicle price change: {signedDollars(delta)}.</p>}
+              {tab === "cohorts" && <p>New-vehicle price change: {signedDollars(marketDelta)}.</p>}
             </div>
             {TABS.map((t) => (
               <section
@@ -180,6 +207,17 @@ export function DemoApp() {
                 className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-600"
               >
                 {t.id === "question" && <QuestionTab state={baseline} onReset={onReset} />}
+                {t.id === "cohorts" && (
+                  <CohortsTab
+                    state={market}
+                    mix={mix}
+                    onMix={onMix}
+                    onResetMix={onResetMix}
+                    delta={marketDelta}
+                    onDelta={setMarketDelta}
+                    onShowClaude={() => selectTab("claude")}
+                  />
+                )}
                 {t.id === "policy-map" && <PolicyMapTab state={baseline} answers={answers} onReset={onReset} />}
                 {t.id === "replacement" && <ReplacementTab state={baseline} onReset={onReset} />}
                 {t.id === "scenario" && (

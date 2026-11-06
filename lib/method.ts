@@ -3,14 +3,15 @@
  *
  * Values come from the engine's `params` echo when the response has one.
  * Otherwise the five panel inputs come from the request and every other
- * value is the ADOS 2026 v1c default (RRToolbox templates/AutoDriveOrSell.py,
- * ModelInputs), and the page says so. No value is calibrated.
+ * value is the ADOS 2026 default (RRToolbox templates/AutoDriveOrSell.py,
+ * ModelInputs, the v2d parameter sheet, MID cohort), and the page says so. No
+ * value is calibrated.
  */
 
-/** ADOS 2026 v1c defaults (ModelInputs in the RR Toolbox engine). */
+/** ADOS 2026 defaults (ModelInputs in the RR Toolbox engine, v2d sheet, MID cohort). */
 export const ADOS_DEFAULTS = {
   StdMiles: 15_000,
-  ReducedMiles: 8_000,
+  ReducedMiles: 12_000,
   MilesThreshold: 12_000,
   DecayFraction: 0.25,
   RepairBase: 0.03,
@@ -22,15 +23,15 @@ export const ADOS_DEFAULTS = {
   SalvageFraction: 0.12,
   EnjoyBase: 4,
   EnjoyHalfLife: 6,
-  p_fuel_down: 0.25,
+  p_fuel_down: 0.15,
   p_fuel_stay: 0.5,
-  p_fuel_up: 0.25,
+  p_fuel_up: 0.35,
   p_econ_down: 0.2,
   p_econ_stay: 0.6,
   p_econ_up: 0.2,
-  p_mpg_down: 0.1,
-  p_mpg_stay: 0.85,
-  p_mpg_up: 0.05,
+  p_mpg_down: 0.15,
+  p_mpg_stay: 0.7,
+  p_mpg_up: 0.15,
   g: 0,
   d: 0.05,
 } as const;
@@ -70,7 +71,7 @@ export interface ParameterRow {
   label: string;
   value: string;
   unit: string;
-  /** Assumed: set in the panel for this demonstration. Illustrative: an ADOS 2026 v1c default. */
+  /** Assumed: set in the panel for this demonstration. Illustrative: an ADOS 2026 default. */
   provenance: Provenance;
 }
 

@@ -1,5 +1,5 @@
 /**
- * Types for the Auto Drive-or-Sell™ (ADOS 2026 v1c) analyst demo: the
+ * Types for the Auto Drive-or-Sell™ (ADOS 2026) analyst demo: the
  * assumption fields the page offers, and the solve response the route
  * returns (mirroring RRToolbox.templates.AutoDriveOrSell).
  */
@@ -147,6 +147,8 @@ export interface CohortsData {
 }
 
 export interface SolveData {
+  /** Absent on a single-cohort run; "market" on a market run (MarketSolveData). */
+  kind?: undefined;
   summary: SolveSummary;
   grids: { age: number[]; mpg: number[]; fuel: number[]; econ: number[] };
   dims: { nAge: number; nMpg: number; nFuel: number; nEcon: number };
@@ -186,4 +188,116 @@ export interface SolveErrorResponse {
   reason: SolveFailureReason;
   /** Plain-language message, safe to show as is. Never carries upstream detail. */
   message: string;
+}
+
+// ── Market runs (market_shares with cohorts: one call for every buyer cohort) ─
+
+export type VehicleClassTag = "ECO" | "ENT" | "MID" | "PKP" | "LUX" | "LSUV" | "EXO";
+
+/** A cohort's price-shock comparison, as the engine returns it per class (no policy to check it against). */
+export interface ClassShockResult {
+  delta_price: number;
+  price_new_car: number;
+  annual_replacement_rate: number;
+  change_pct: number | null;
+  implied_elasticity: number | null;
+  first_year_rate: number;
+  first_year_elasticity: number | null;
+  projection: CohortProjection;
+  baseline_cumulative: number;
+  cumulative_elasticity: number | null;
+  /** The cohort's fleet by age at the shocked price. */
+  fleet_share: number[];
+  replacement_hazard: (number | null)[];
+  states_changed: number;
+  /** The first switching states; the service lists at most ten per cohort. */
+  changed_states: ChangedState[];
+  changed_states_truncated?: true;
+}
+
+/** One cohort's fleet output inside a market run (its own fleet_cohorts block). */
+export interface ClassFleet {
+  ages: number[];
+  fleet_share: number[];
+  replacement_hazard: (number | null)[];
+  grid_share_sell: number[];
+  /** Sell share by age with the conditions weighted by their long-run distribution under driving; null when undefined. */
+  stationary_share_sell: number[] | null;
+  annual_replacement_rate: number;
+  mean_holding_years: number | null;
+  projection: CohortProjection;
+  price_shock?: ClassShockResult;
+  caveats: string[];
+}
+
+export interface MarketClass {
+  tag: VehicleClassTag;
+  /** Share of vehicles on the road, as sent. */
+  share: number;
+  decision_breakdown: Record<ActionName, number>;
+  iterations: number;
+  /** The cohort row the engine solved (PriceNewCar, EnjoyBase, StdMiles, d among them). */
+  params: Record<string, number>;
+  fleet: ClassFleet;
+}
+
+export interface MarketShockClassRow {
+  share: number;
+  price_new_car: number;
+  annual_replacement_rate: number;
+  change_pct: number | null;
+  implied_elasticity: number | null;
+  states_changed: number;
+}
+
+/** The market-weighted price-shock comparison (aggregate.cohorts.price_shock). */
+export interface MarketShock {
+  delta_price: number;
+  /** Share-weighted percent change in the new-vehicle price; the market elasticities divide by it. */
+  price_change_pct: number;
+  annual_replacement_rate: number;
+  change_pct: number | null;
+  implied_elasticity: number | null;
+  first_year_rate: number;
+  first_year_elasticity: number | null;
+  projection: CohortProjection;
+  baseline_cumulative: number;
+  cumulative_elasticity: number | null;
+  fleet_share: number[];
+  replacement_hazard: (number | null)[];
+  /** Switching states summed over the cohorts. */
+  states_changed: number;
+  by_class: Record<VehicleClassTag, MarketShockClassRow>;
+}
+
+/** The market-weighted fleet figures (aggregate.cohorts). */
+export interface MarketFleet {
+  ages: number[];
+  method: string;
+  fleet_share: number[];
+  replacement_hazard: (number | null)[];
+  grid_share_sell: number[];
+  stationary_share_sell: number[] | null;
+  annual_replacement_rate: number;
+  mean_holding_years: number | null;
+  by_class: Record<VehicleClassTag, { share: number; annual_replacement_rate: number; mean_holding_years: number | null }>;
+  projection: CohortProjection;
+  price_shock?: MarketShock;
+  caveats: string[];
+}
+
+export interface MarketSolveData {
+  kind: "market";
+  grids: SolveData["grids"];
+  dims: SolveData["dims"];
+  /** The cohorts solved, in the engine's class order. */
+  classes: MarketClass[];
+  market: MarketFleet;
+}
+
+export interface MarketSolveResponse {
+  status: "success";
+  data: MarketSolveData;
+  attribution: string;
+  warnings: string[];
 }

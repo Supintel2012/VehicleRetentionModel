@@ -1,14 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
+/**
+ * Plus Jakarta Sans, the Supported Intelligence site's face, served from this
+ * app (the same variable files the site uses; SIL Open Font License).
+ */
+const jakarta = localFont({
+  src: [
+    { path: "../public/fonts/PlusJakartaSans-Variable-Latin.woff2", weight: "200 800", style: "normal" },
+    { path: "../public/fonts/PlusJakartaSans-Variable-Italic-Latin.woff2", weight: "200 800", style: "italic" },
+  ],
+  display: "swap",
+  variable: "--font-jakarta",
+});
 
-const TITLE = "Auto Drive-or-Sell™ vehicle retention model · Rapid Recursive®";
+const TITLE = "Auto Drive-or-Sell™ buyer-cohort model · Rapid Recursive®";
 const DESCRIPTION =
-  "ADOS 2026 v1c, a sequential decision model of when vehicle owners keep driving, cut back or replace their vehicle, " +
-  "and how a change in the new-vehicle price shifts replacement timing. Anderson Economic Group LLC with Supported " +
-  "Intelligence LLC. A technology demonstration, not a forecast.";
+  "ADOS 2026, a sequential decision model of when vehicle owners keep driving, cut back or replace their vehicle, " +
+  "solved for seven buyer cohorts and the market they make up, and how a change in the new-vehicle price shifts " +
+  "replacement timing. Anderson Economic Group LLC with Supported Intelligence LLC. A technology demonstration, not a forecast.";
 
 /** Absolute URLs for social previews: Vercel's production host when deployed, localhost otherwise. */
 function siteUrl(): URL {
@@ -25,7 +36,7 @@ export const metadata: Metadata = {
     type: "website",
     title: TITLE,
     description: DESCRIPTION,
-    siteName: "Auto Drive-or-Sell™ · ADOS 2026 v1c",
+    siteName: "Auto Drive-or-Sell™ · ADOS 2026",
     locale: "en_US",
   },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
@@ -34,12 +45,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#1e3a8a",
+  themeColor: "#3d5a80",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={jakarta.variable}>
       <body className="font-sans">{children}</body>
     </html>
   );

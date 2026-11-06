@@ -8,6 +8,7 @@ import {
   SolveProtocolError,
   SolveToolError,
 } from "./solve-result.ts";
+import type { SolveParameters } from "./solve-input.ts";
 
 /** Live RR Toolbox MCP response at engine defaults (see the fixture's "source"). */
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/ados-default-run.json", import.meta.url), "utf8"));
@@ -353,7 +354,7 @@ const truncatedFixture = JSON.parse(readFileSync(new URL("./fixtures/ados-trunca
 
 test("a 78-state switch list cut to 50 rows by the RR Toolbox API is read with the full count", () => {
   const envelope = { ...structuredClone(fixture.envelope), raw: { status: "success", data: structuredClone(truncatedFixture.data) } };
-  const shock = adaptToolResult(asText(envelope), truncatedFixture.request).data.cohorts?.price_shock;
+  const shock = adaptToolResult(asText(envelope), truncatedFixture.request as SolveParameters).data.cohorts?.price_shock;
   assert.equal(shock?.states_changed, 78);
   assert.equal(shock?.changed_states.length, 50);
   assert.equal(shock?.changed_states_truncated, true);

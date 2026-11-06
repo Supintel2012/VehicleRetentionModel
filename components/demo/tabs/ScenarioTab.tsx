@@ -27,10 +27,25 @@ export const DEFAULT_PRICE_CHANGE = 1_000;
 const BASELINE = "#475569";
 const SCENARIO = "#1e3a8a";
 
-function PriceControl({ delta, basePrice, onChange }: { delta: number; basePrice: number; onChange: (delta: number) => void }) {
+/**
+ * The new-vehicle price change, in $250 steps. With `basePrice` the control
+ * names the before and after prices; without one (the buyer-cohorts screen,
+ * where every cohort has its own price) it names the change alone.
+ */
+export function PriceControl({
+  delta,
+  basePrice,
+  onChange,
+  note,
+}: {
+  delta: number;
+  basePrice?: number;
+  onChange: (delta: number) => void;
+  note?: string;
+}) {
   const id = useId();
   const clamp = (x: number) => Math.max(-PRICE_LIMIT, Math.min(PRICE_LIMIT, x));
-  const text = `${signedDollars(delta)} (${dollars(basePrice)} to ${dollars(basePrice + delta)})`;
+  const text = basePrice === undefined ? signedDollars(delta) : `${signedDollars(delta)} (${dollars(basePrice)} to ${dollars(basePrice + delta)})`;
   return (
     <div className="panel space-y-3 p-4">
       <label htmlFor={id} className="block text-sm font-semibold text-slate-900">
@@ -38,9 +53,11 @@ function PriceControl({ delta, basePrice, onChange }: { delta: number; basePrice
       </label>
       <p className="text-2xl font-semibold tracking-tight text-slate-900" aria-hidden>
         {signedDollars(delta)}{" "}
-        <span className="text-base font-normal text-slate-600">
-          ({dollars(basePrice)} to {dollars(basePrice + delta)})
-        </span>
+        {basePrice !== undefined && (
+          <span className="text-base font-normal text-slate-600">
+            ({dollars(basePrice)} to {dollars(basePrice + delta)})
+          </span>
+        )}
       </p>
       <div className="no-print flex items-center gap-3">
         <button type="button" className="btn btn-secondary px-2" aria-label="Lower the price change by $250" onClick={() => onChange(clamp(delta - PRICE_STEP))} disabled={delta <= -PRICE_LIMIT}>
@@ -67,8 +84,8 @@ function PriceControl({ delta, basePrice, onChange }: { delta: number; basePrice
         <span>{signedDollars(PRICE_LIMIT)}</span>
       </div>
       <p className="text-sm leading-snug text-slate-600">
-        For example, a regulatory cost passed through to the price. The model is solved at the baseline price and again at the new
-        price; the figures compare the two.
+        {note ??
+          "For example, a regulatory cost passed through to the price. The model is solved at the baseline price and again at the new price; the figures compare the two."}
       </p>
     </div>
   );

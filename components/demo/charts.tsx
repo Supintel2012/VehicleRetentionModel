@@ -199,22 +199,40 @@ export function GroupedBarChart({
 
 export interface LineSeries {
   label: string;
-  values: number[];
+  /** A null is a gap in the line (no vehicles at that age). */
+  values: (number | null)[];
   color: string;
   dashed?: boolean;
-  marker: "circle" | "square";
+  marker: "circle" | "square" | "none";
+  width?: number;
+}
+
+/** Runs of consecutive non-null points, as SVG point strings. */
+function segments(values: (number | null)[], x: (i: number) => number, y: (v: number) => number): string[] {
+  const out: string[] = [];
+  let current: string[] = [];
+  values.forEach((v, i) => {
+    if (v === null) {
+      if (current.length) out.push(current.join(" "));
+      current = [];
+    } else current.push(`${x(i)},${y(v)}`);
+  });
+  if (current.length) out.push(current.join(" "));
+  return out;
 }
 
 /**
- * Lines over years 1..n. The value axis is fitted to the data (see
- * fittedAxis): at least `minSpan` wide, never below `floor`, with no repeated
- * tick labels.
+ * Lines over an ordered axis (years 1..n, or vehicle ages). The value axis is
+ * fitted to the data (see fittedAxis): at least `minSpan` wide, never below
+ * `floor`, with no repeated tick labels.
  */
 export function LineChart({
   years,
   series,
   format,
   yLabel,
+  xLabel = "Year",
+  categories,
   minSpan,
   floor,
   height = 260,
@@ -224,6 +242,9 @@ export function LineChart({
   series: LineSeries[];
   format: (value: number) => string;
   yLabel: string;
+  xLabel?: string;
+  /** Axis labels, one per entry of `years` (defaults to the numbers themselves). */
+  categories?: string[];
   minSpan?: number;
   floor?: number;
   height?: number;
@@ -235,7 +256,7 @@ export function LineChart({
   const plotW = width - margin.left - margin.right;
   const plotH = height - margin.top - margin.bottom;
   const { lo, hi, ticks } = fittedAxis(
-    series.flatMap((s) => s.values),
+    series.flatMap((s) => s.values).filter((v): v is number => v !== null),
     format,
     { minSpan, floor },
   );
@@ -266,24 +287,27 @@ export function LineChart({
         </text>
         {years.map((year, i) => (
           <text key={year} x={x(i)} y={margin.top + plotH + 16} textAnchor="middle" fontSize="12" fill={TEXT}>
-            {year}
+            {categories ? categories[i] : year}
           </text>
         ))}
         <text x={margin.left + plotW / 2} y={height - 6} textAnchor="middle" fontSize="12" fill={TEXT}>
-          Year
+          {xLabel}
         </text>
         <line x1={margin.left} x2={width - margin.right} y1={margin.top + plotH} y2={margin.top + plotH} stroke={AXIS} />
         {series.map((s) => (
           <g key={s.label}>
-            <polyline
-              points={s.values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}
-              fill="none"
-              stroke={s.color}
-              strokeWidth="2.5"
-              strokeDasharray={s.dashed ? "6 4" : undefined}
-            />
+            {segments(s.values, x, y).map((points, i) => (
+              <polyline
+                key={i}
+                points={points}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={s.width ?? 2.5}
+                strokeDasharray={s.dashed ? "6 4" : undefined}
+              />
+            ))}
             {s.values.map((v, i) =>
-              s.marker === "square" ? (
+              v === null || s.marker === "none" ? null : s.marker === "square" ? (
                 <rect key={i} x={x(i) - 3.5} y={y(v) - 3.5} width="7" height="7" fill={s.color} />
               ) : (
                 <circle key={i} cx={x(i)} cy={y(v)} r="3.5" fill="#fff" stroke={s.color} strokeWidth="2" />
