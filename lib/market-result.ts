@@ -12,7 +12,7 @@ import type {
   VehicleClassTag,
 } from "./types.ts";
 import type { MarketSolveParameters } from "./solve-input.ts";
-import { VEHICLE_CLASS_TAGS } from "./solve-input.ts";
+import { classRow, SALVAGE_FRACTION, VEHICLE_CLASS_TAGS } from "./market.ts";
 import {
   ACTIONS,
   actionName,
@@ -41,8 +41,10 @@ import {
  * checked is: every share, hazard and rate is a share; every array has one
  * entry per age; the market figures are the share-weighted sums of the cohort
  * figures the engine documents (rate, fleet by age, sell signals, projection,
- * the shocked rate); and the per-cohort rows of the market block agree with
- * the cohort blocks. A result that fails any of these is refused rather than
+ * the shocked rate); the per-cohort rows of the market block agree with the
+ * cohort blocks; and each cohort's echoed row (PriceNewCar, EnjoyBase,
+ * StdMiles, d, SalvageFraction) is the row the page's cohort table shows
+ * (lib/market.ts). A result that fails any of these is refused rather than
  * drawn.
  */
 
@@ -170,7 +172,7 @@ function parseClass(tag: VehicleClassTag, value: unknown, shareOfMarket: number,
   const iterations = summary.iterations;
   if (!Number.isInteger(iterations) || (iterations as number) < 0) fail(`${field}.summary.iterations is not an integer`);
   const params = parseParams(entry.params, `${field}.params`);
-  if (params.vehicle_class !== undefined) fail(`${field}.params.vehicle_class is not a number`);
+  checkClassRow(tag, params, `${field}.params`);
   return {
     tag,
     share: shareOfMarket,
@@ -179,6 +181,17 @@ function parseClass(tag: VehicleClassTag, value: unknown, shareOfMarket: number,
     params,
     fleet: parseClassFleet(entry.cohorts, grids, dims, `${field}.cohorts`),
   };
+}
+
+/** The inputs the page's cohort table shows must be the ones the engine solved on. */
+const CLASS_ROW_INPUTS = ["PriceNewCar", "EnjoyBase", "StdMiles", "d"] as const;
+
+function checkClassRow(tag: VehicleClassTag, params: Record<string, number>, field: string): void {
+  const row = classRow(tag);
+  for (const key of CLASS_ROW_INPUTS) {
+    if (params[key] !== row[key]) fail(`${field}.${key} is not the ${tag} row the page shows (${row[key]})`);
+  }
+  if (params.SalvageFraction !== SALVAGE_FRACTION) fail(`${field}.SalvageFraction is not the trade-in share the page shows (${SALVAGE_FRACTION})`);
 }
 
 function positiveIntegerOrZero(value: unknown, field: string): number {

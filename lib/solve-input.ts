@@ -16,14 +16,16 @@
  * then.
  *
  * A market request (market_shares) is the other shape: the mix of buyer
- * cohorts, the fleet switches and nothing else. The engine supplies each
- * cohort's inputs and refuses PriceNewCar, StdMiles and d beside
- * market_shares; this demo also leaves FixedCost and ReducedMiles at the
- * engine's defaults there, so the cohort table on the page is the calibration
- * as published.
+ * cohorts, cohorts: true and the fleet switches, nothing else. The engine
+ * supplies each cohort's inputs and refuses PriceNewCar, StdMiles and d
+ * beside market_shares; this demo also leaves FixedCost and ReducedMiles at
+ * the engine's defaults there, so the cohort table on the page is the
+ * calibration as published. The fleet output is required: without it the
+ * engine returns value functions only, which the page has no use for.
  */
 
 import type { VehicleClassTag } from "./types.ts";
+import { VEHICLE_CLASS_TAGS } from "./market.ts";
 
 export interface QueryState {
   age: number;
@@ -52,7 +54,7 @@ export interface SolveParameters {
 /** A market run: every named cohort at its calibrated inputs, weighted by shares of vehicles on the road. */
 export interface MarketSolveParameters {
   market_shares: Partial<Record<VehicleClassTag, number>>;
-  cohorts?: boolean;
+  cohorts: true;
   price_shock?: number;
   projection_years?: number;
 }
@@ -63,7 +65,6 @@ export function isMarketParameters(parameters: AnySolveParameters): parameters i
   return "market_shares" in parameters;
 }
 
-export const VEHICLE_CLASS_TAGS: readonly VehicleClassTag[] = ["ECO", "ENT", "MID", "PKP", "LUX", "LSUV", "EXO"];
 /** The engine's own tolerance on the sum of the shares. */
 const SHARE_SUM_TOLERANCE = 1e-6;
 
@@ -158,16 +159,12 @@ function checkedNumber(value: unknown, limit: Limit): number {
 }
 
 function parseFleetSwitches(body: Record<string, unknown>, parameters: SolveParameters | MarketSolveParameters) {
-  if (body.cohorts !== undefined) {
-    if (typeof body.cohorts !== "boolean") throw new SolveInputError("The cohort setting must be true or false.");
-    parameters.cohorts = body.cohorts;
-  }
   for (const key of Object.keys(COHORT_LIMITS) as (keyof typeof COHORT_LIMITS)[]) {
     if (body[key] !== undefined) parameters[key] = checkedNumber(body[key], COHORT_LIMITS[key]);
   }
 }
 
-/** A market request: the mix of cohorts and the fleet switches, nothing else. */
+/** A market request: the mix of cohorts, the fleet output and its switches, nothing else. */
 export function parseMarketRequest(body: unknown): MarketSolveParameters {
   if (!isPlainObject(body)) throw new SolveInputError("The request body must be a JSON object.");
   rejectUnknownKeys(body, ["market_shares", "cohorts", ...Object.keys(COHORT_LIMITS)], "an input of a market run");
@@ -187,7 +184,8 @@ export function parseMarketRequest(body: unknown): MarketSolveParameters {
   }
   if (Object.keys(shares).length === 0) throw new SolveInputError("The market mix must name at least one buyer cohort.");
   if (Math.abs(total - 1) > SHARE_SUM_TOLERANCE) throw new SolveInputError("The cohort shares must add up to 1.");
-  const parameters: MarketSolveParameters = { market_shares: shares };
+  if (body.cohorts !== true) throw new SolveInputError("A market run needs the fleet output: set cohorts to true.");
+  const parameters: MarketSolveParameters = { market_shares: shares, cohorts: true };
   parseFleetSwitches(body, parameters);
   return parameters;
 }
@@ -219,6 +217,10 @@ export function parseSolveRequest(body: unknown): SolveParameters {
     throw new SolveInputError(
       `${PARAMETER_LIMITS.ReducedMiles.label} (${miles(reduced)}) must be less than ${PARAMETER_LIMITS.StdMiles.label.toLowerCase()} (${miles(std)}).`,
     );
+  }
+  if (body.cohorts !== undefined) {
+    if (typeof body.cohorts !== "boolean") throw new SolveInputError("The cohort setting must be true or false.");
+    parameters.cohorts = body.cohorts;
   }
   parseFleetSwitches(body, parameters);
 

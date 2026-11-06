@@ -100,6 +100,21 @@ test("market figures that are not the share-weighted cohort figures are refused"
   protocolError(() => adaptMarketSolveData(i.raw.data), /market_shares do not sum to 1/);
 });
 
+test("a cohort solved on a row other than the one the page shows is refused", () => {
+  const e = envelope();
+  e.raw.data.vehicle_classes.PKP.params.PriceNewCar = 55_000;
+  protocolError(() => adaptMarketSolveData(e.raw.data), /vehicle_classes.PKP.params.PriceNewCar is not the PKP row the page shows \(52000\)/);
+  const f = envelope();
+  f.raw.data.vehicle_classes.EXO.params.d = 0.06;
+  protocolError(() => adaptMarketSolveData(f.raw.data), /EXO.params.d is not the EXO row/);
+  const g = envelope();
+  delete g.raw.data.vehicle_classes.ECO.params.EnjoyBase;
+  protocolError(() => adaptMarketSolveData(g.raw.data), /ECO.params.EnjoyBase is not the ECO row/);
+  const h = envelope();
+  h.raw.data.vehicle_classes.MID.params.SalvageFraction = 0.1;
+  protocolError(() => adaptMarketSolveData(h.raw.data), /MID.params.SalvageFraction is not the trade-in share/);
+});
+
 test("a market run without the fleet output is refused: the page has nothing to draw", () => {
   const e = envelope();
   delete e.raw.data.aggregate.cohorts;

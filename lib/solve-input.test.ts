@@ -194,7 +194,11 @@ test("a market run accepts the mix and the fleet switches, and nothing else", ()
     price_shock: 1_000,
     projection_years: 10,
   });
-  assert.deepEqual(parseMarketRequest({ market_shares: { MID: 1 } }), { market_shares: { MID: 1 } });
+  assert.deepEqual(parseMarketRequest({ market_shares: { MID: 1 }, cohorts: true }), { market_shares: { MID: 1 }, cohorts: true });
+  // Without the fleet output the engine returns value functions only, which the page cannot draw: refused before the call.
+  for (const cohorts of [undefined, false, "true", 1]) {
+    assert.throws(() => parseRequest({ market_shares: mix, cohorts }), /A market run needs the fleet output: set cohorts to true\./);
+  }
   // The engine refuses the cohort inputs beside market_shares; so does the route, before the call.
   for (const extra of [{ PriceNewCar: 50_000 }, { StdMiles: 15_000 }, { d: 0.05 }, { FixedCost: 2_500 }, { query_state: { age: 5 } }]) {
     assert.throws(() => parseRequest({ market_shares: mix, ...extra }), /is not an input of a market run/);
@@ -204,7 +208,7 @@ test("a market run accepts the mix and the fleet switches, and nothing else", ()
   assert.throws(() => parseRequest({ market_shares: {} }), /at least one buyer cohort/);
   assert.throws(() => parseRequest({ market_shares: { ECO: "0.5", MID: 0.5 } }), /ECO share must be a number/);
   assert.throws(() => parseRequest({ market_shares: { ECO: 1.5, MID: -0.5 } }), /ECO share must be a number from 0 to 1/);
-  assert.throws(() => parseRequest({ market_shares: mix, price_shock: 5_000 }), /must be between/);
+  assert.throws(() => parseRequest({ market_shares: mix, cohorts: true, price_shock: 5_000 }), /must be between/);
   assert.throws(() => parseRequest({ market_shares: [0.5, 0.5] }), /must give each buyer cohort its share/);
   // A single-cohort body still goes the single way, and market_shares is not one of its inputs.
   assert.deepEqual(parseRequest({ d: 0.05 }), { d: 0.05 });

@@ -128,12 +128,17 @@ export function DemoApp() {
   useOpenDetailsForPrint();
 
   // The buyer-cohorts screen: one market run, started the first time the screen is opened and kept after.
+  // It has its own price change: sharing the scenario's would re-solve the single-cohort request on every step here.
   const [mix, setMix] = useState<MarketMix>(() => defaultMix());
+  const [marketDelta, setMarketDelta] = useState(DEFAULT_PRICE_CHANGE);
   const [cohortsOpened, setCohortsOpened] = useState(false);
   useEffect(() => {
     if (tab === "cohorts") setCohortsOpened(true);
   }, [tab]);
-  const marketBody = useMemo(() => (cohortsOpened && mixIsComplete(mix) ? buildMarketBody(mix, delta) : null), [cohortsOpened, mix, delta]);
+  const marketBody = useMemo(
+    () => (cohortsOpened && mixIsComplete(mix) ? buildMarketBody(mix, marketDelta) : null),
+    [cohortsOpened, mix, marketDelta],
+  );
   const market = useLatestMarketSolve(marketBody);
   const onMix = useCallback((tag: VehicleClassTag, value: number) => setMix((m) => ({ ...m, [tag]: value })), []);
   const onResetMix = useCallback(() => setMix(defaultMix()), []);
@@ -188,7 +193,8 @@ export function DemoApp() {
               <p className="font-semibold">{current.label}</p>
               {tab !== "cohorts" && <p>Owner profile: {summary.owner}.</p>}
               {tab !== "cohorts" && <p>Vehicle to inspect: {summary.vehicle}.</p>}
-              {(tab === "scenario" || tab === "cohorts") && <p>New-vehicle price change: {signedDollars(delta)}.</p>}
+              {tab === "scenario" && <p>New-vehicle price change: {signedDollars(delta)}.</p>}
+              {tab === "cohorts" && <p>New-vehicle price change: {signedDollars(marketDelta)}.</p>}
             </div>
             {TABS.map((t) => (
               <section
@@ -207,8 +213,8 @@ export function DemoApp() {
                     mix={mix}
                     onMix={onMix}
                     onResetMix={onResetMix}
-                    delta={delta}
-                    onDelta={setDelta}
+                    delta={marketDelta}
+                    onDelta={setMarketDelta}
                     onShowClaude={() => selectTab("claude")}
                   />
                 )}
