@@ -28,6 +28,7 @@ test("the panel's default values pass and map to exactly the expected parameters
     PriceNewCar: 43_000,
     FixedCost: 2_500,
     d: 0.05,
+    DecayFraction: 0.25,
     query_state: { age: 5, fuel_economy: 28, fuel_price: 5.5, econ_condition: 100 },
   });
 });
@@ -39,6 +40,7 @@ test("the wizard's sample answers pass, including an off-grid economic index", (
     PriceNewCar: 43_000,
     FixedCost: 2_500,
     d: 0.05,
+    DecayFraction: 0.25,
     query_state: { age: 7, fuel_economy: 28, fuel_price: 5.5, econ_condition: 95 },
   });
 });
@@ -154,6 +156,7 @@ test("the page's own request (defaults plus cohorts and a +$1,000 change) maps t
     PriceNewCar: 43_000,
     FixedCost: 2_500,
     d: 0.05,
+    DecayFraction: 0.25,
     query_state: { age: 5, fuel_economy: 28, fuel_price: 5.5, econ_condition: 100 },
     cohorts: true,
     price_shock: 1_000,

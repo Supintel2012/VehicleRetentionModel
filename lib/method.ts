@@ -40,7 +40,7 @@ export type ParameterKey = keyof typeof ADOS_DEFAULTS;
 export type ParameterValues = Record<ParameterKey, number>;
 
 /** The inputs the assumptions panel sets. */
-export const PANEL_KEYS = ["StdMiles", "ReducedMiles", "PriceNewCar", "FixedCost", "d"] as const satisfies readonly ParameterKey[];
+export const PANEL_KEYS = ["StdMiles", "ReducedMiles", "PriceNewCar", "FixedCost", "d", "DecayFraction"] as const satisfies readonly ParameterKey[];
 
 export interface ResolvedParameters {
   values: ParameterValues;

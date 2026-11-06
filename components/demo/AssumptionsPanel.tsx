@@ -87,7 +87,7 @@ function NumberField({
         />
         {field.unit && field.unit !== "$" && (
           <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-slate-500">
-            {field.unit === "%" ? "% a year" : field.unit}
+            {field.unitLabel ?? field.unit}
           </span>
         )}
       </div>
@@ -140,7 +140,7 @@ export function assumptionSummary(answers: Answers): { owner: string; vehicle: s
     owner:
       `${answers.std_miles.toLocaleString("en-US")} standard miles, ${answers.reduced_miles.toLocaleString("en-US")} reduced; ` +
       `new vehicle $${answers.new_car_price.toLocaleString("en-US")}; insurance and tax $${answers.fixed_cost.toLocaleString("en-US")} a year; ` +
-      `discount rate ${answers.discount_rate}%`,
+      `discount rate ${answers.discount_rate}%; enjoyment taper ${answers.decay_fraction}%`,
     vehicle:
       `${ageLabel(answers.vehicle_age)}, ${answers.vehicle_mpg} mpg, fuel $${answers.fuel_price_now.toFixed(2)} a gallon, ` +
       `economic index ${answers.econ_now}`,

@@ -269,7 +269,7 @@ export function SeriesBarChart({
           ))}
         </BarChart>
       </ResponsiveContainer>
-      <p className="mt-1 text-xs text-slate-500">Point at a bar for every value at that age, or press Tab to the chart and use the arrow keys.</p>
+      <p className="mt-1 text-xs text-slate-500">Point at a bar for every value at that position, or press Tab to the chart and use the arrow keys.</p>
     </div>
   );
 }

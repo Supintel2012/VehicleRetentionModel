@@ -18,7 +18,7 @@ export interface Field {
   type: FieldType;
   prompt: string;
   help?: string;
-  /** Request-body key the value maps to ("query_state.<key>" and "d.scaled_pct" are mapped specially). */
+  /** Request-body key the value maps to ("query_state.<key>" is a lookup field; a "<key>.scaled_pct" value is sent divided by 100). */
   paramKey?: string;
   /** Grid levels for a select field. */
   options?: FieldOption[];
@@ -28,6 +28,8 @@ export interface Field {
   /** Input step (for a select, the spacing between levels). */
   step?: number;
   unit?: string;
+  /** Text after the input (defaults to the unit; "% a year" for a rate). */
+  unitLabel?: string;
   default?: number;
 }
 

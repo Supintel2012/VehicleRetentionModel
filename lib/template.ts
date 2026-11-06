@@ -87,7 +87,22 @@ const OWNER_FIELDS: Field[] = [
     step: 0.5,
     default: 5,
     unit: "%",
+    unitLabel: "% a year",
     paramKey: "d.scaled_pct",
+  },
+  {
+    id: "decay_fraction",
+    type: "number",
+    prompt: "Largest taper of enjoyment per mile",
+    help:
+      "Above 12,000 miles a year each extra mile is enjoyed less, by at most this share. It is the only input that can make reducing mileage the best action: near 35% it appears, first at the highest fuel prices; at 40% it beats driving everywhere.",
+    min: 0,
+    max: 60,
+    step: 1,
+    default: 25,
+    unit: "%",
+    unitLabel: "%",
+    paramKey: "DecayFraction.scaled_pct",
   },
 ];
 
@@ -163,6 +178,7 @@ export const VEHICLE_RETENTION_TEMPLATE: Template = {
     new_car_price: 43000,
     fixed_cost: 2500,
     discount_rate: 5,
+    decay_fraction: 25,
   },
 };
 
@@ -192,8 +208,8 @@ export function buildSolveBody(
       if (raw === undefined || raw === "") continue;
       const value = typeof raw === "string" ? Number(raw) : raw;
 
-      if (q.paramKey === "d.scaled_pct" && typeof value === "number") {
-        body.d = value / 100;
+      if (q.paramKey.endsWith(".scaled_pct") && typeof value === "number") {
+        body[q.paramKey.slice(0, -".scaled_pct".length)] = value / 100;
         continue;
       }
       if (q.paramKey.startsWith("query_state.")) {

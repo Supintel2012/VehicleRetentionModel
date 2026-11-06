@@ -42,6 +42,11 @@ export interface SolveParameters {
   FixedCost?: number;
   /** Annual discount rate as a fraction (0.05 = 5%). */
   d?: number;
+  /** Largest taper of enjoyment per mile above MilesThreshold, as a fraction (0.25 = 25%). */
+  DecayFraction?: number;
+  /** Lowest and highest fuel price on the grid; sent together, the same span as the engine default, to shift the grid. */
+  FuelMin?: number;
+  FuelMax?: number;
   query_state?: QueryState;
   /** Ask for the fleet figures (data.cohorts) computed from the solved policy. */
   cohorts?: boolean;
@@ -68,7 +73,8 @@ export function isMarketParameters(parameters: AnySolveParameters): parameters i
 /** The engine's own tolerance on the sum of the shares. */
 const SHARE_SUM_TOLERANCE = 1e-6;
 
-type CostParameter = "StdMiles" | "ReducedMiles" | "PriceNewCar" | "FixedCost" | "d";
+type CostParameter = "StdMiles" | "ReducedMiles" | "PriceNewCar" | "FixedCost" | "d" | "DecayFraction";
+type GridParameter = "FuelMin" | "FuelMax";
 
 interface Limit {
   label: string;
@@ -94,7 +100,23 @@ export const PARAMETER_LIMITS = {
   // Floor above 0: with the engine's growth rate g = 0, beta = (1 + g) / (1 + d) is 1 at d = 0,
   // and policy iteration then runs to its iteration cap (over a minute) and returns no usable result.
   d: { label: "Annual discount rate", min: 0.01, max: 0.15, format: percent },
+  // At 40% reducing mileage beats driving in every state; 60% leaves room to show that corner.
+  DecayFraction: { label: "Largest taper of enjoyment per mile", min: 0, max: 0.6, format: percent },
 } satisfies Record<CostParameter, Limit>;
+
+/**
+ * The fuel-price scenario shifts the whole grid: FuelMin and FuelMax are
+ * accepted together, FUEL_SPAN apart (the engine default $4.00 to $7.00, so
+ * the seven levels keep their $0.50 spacing and the state count stays 1,232),
+ * and no higher than $15.00 a gallon.
+ */
+export const ENGINE_DEFAULT_FUEL = { FuelMin: 4, FuelMax: 7 } as const;
+export const FUEL_SPAN = ENGINE_DEFAULT_FUEL.FuelMax - ENGINE_DEFAULT_FUEL.FuelMin;
+const gallons = (value: number) => `$${value.toFixed(2)} a gallon`;
+export const GRID_LIMITS = {
+  FuelMin: { label: "Lowest fuel price on the grid", min: 4, max: 12, format: gallons },
+  FuelMax: { label: "Highest fuel price on the grid", min: 7, max: 15, format: gallons },
+} satisfies Record<GridParameter, Limit>;
 
 /**
  * Fleet-output switches. The page moves the price in $250 steps; whole dollars
@@ -204,12 +226,23 @@ export function parseRequest(body: unknown): AnySolveParameters {
 export function parseSolveRequest(body: unknown): SolveParameters {
   if (!isPlainObject(body)) throw new SolveInputError("The request body must be a JSON object.");
   const parameterKeys = Object.keys(PARAMETER_LIMITS) as CostParameter[];
+  const gridKeys = Object.keys(GRID_LIMITS) as GridParameter[];
   const cohortKeys = Object.keys(COHORT_LIMITS) as (keyof typeof COHORT_LIMITS)[];
-  rejectUnknownKeys(body, [...parameterKeys, "query_state", "cohorts", ...cohortKeys], "an input");
+  rejectUnknownKeys(body, [...parameterKeys, ...gridKeys, "query_state", "cohorts", ...cohortKeys], "an input");
 
   const parameters: SolveParameters = {};
   for (const key of parameterKeys) {
     if (body[key] !== undefined) parameters[key] = checkedNumber(body[key], PARAMETER_LIMITS[key]);
+  }
+  if (body.FuelMin !== undefined || body.FuelMax !== undefined) {
+    if (body.FuelMin === undefined || body.FuelMax === undefined) {
+      throw new SolveInputError("A shifted fuel-price grid needs both its lowest and highest price.");
+    }
+    parameters.FuelMin = checkedNumber(body.FuelMin, GRID_LIMITS.FuelMin);
+    parameters.FuelMax = checkedNumber(body.FuelMax, GRID_LIMITS.FuelMax);
+    if (Math.abs(parameters.FuelMax - parameters.FuelMin - FUEL_SPAN) > 1e-9) {
+      throw new SolveInputError(`The fuel-price grid must span $${FUEL_SPAN.toFixed(2)} a gallon, as the engine's does.`);
+    }
   }
   const std = parameters.StdMiles ?? ENGINE_DEFAULT_MILES.StdMiles;
   const reduced = parameters.ReducedMiles ?? ENGINE_DEFAULT_MILES.ReducedMiles;

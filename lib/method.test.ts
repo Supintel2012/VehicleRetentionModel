@@ -56,7 +56,7 @@ test("the parameter table tags the panel's inputs Assumed and the engine default
   assert.equal(byLabel["Growth of repair cost per year of age"].value, "15%");
   assert.deepEqual(
     rows.filter((row) => row.provenance === "Assumed").map((row) => row.label),
-    ["Standard annual miles", "Reduced annual miles", "Insurance and property tax", "New-vehicle price", "Annual discount rate"],
+    ["Standard annual miles", "Reduced annual miles", "Largest taper of enjoyment per mile", "Insurance and property tax", "New-vehicle price", "Annual discount rate"],
   );
 });
 

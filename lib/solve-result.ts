@@ -46,7 +46,7 @@ const SHARE_TOLERANCE = 0.005;
 /** At most this many echoed parameters are kept (the engine echoes about 45). */
 const MAX_PARAMS = 80;
 /** Echoed inputs compared with the request; the engine stores them as floats. */
-const ECHOED_INPUTS = ["StdMiles", "ReducedMiles", "PriceNewCar", "FixedCost", "d", "projection_years"] as const;
+const ECHOED_INPUTS = ["StdMiles", "ReducedMiles", "PriceNewCar", "FixedCost", "d", "DecayFraction", "FuelMin", "FuelMax", "projection_years"] as const;
 
 /** The tool ran but reported an error. The detail is for server logs only. */
 export class SolveToolError extends Error {

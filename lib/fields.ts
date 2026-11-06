@@ -20,7 +20,7 @@ export function formatFieldValue(field: Field, value: number): string {
 /** The value with its unit, for messages: "15,000 miles", "$43,000", "5% a year". */
 export function valueText(field: Field, value: number): string {
   if (field.unit === "$") return `$${value.toLocaleString("en-US")}`;
-  if (field.unit === "%") return `${value}% a year`;
+  if (field.unit === "%") return `${value}${field.unitLabel ?? "%"}`;
   if (field.unit) return `${value.toLocaleString("en-US")} ${field.unit}`;
   return value.toLocaleString("en-US");
 }

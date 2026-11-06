@@ -68,7 +68,7 @@ test("a same-origin solve forwards only validated parameters and returns the ada
   assert.deepEqual(calls[0].arguments, {
     model_name: "AutoDriveOrSell",
     parameters: {
-      StdMiles: 15_000, ReducedMiles: 12_000, PriceNewCar: 43_000, FixedCost: 2_500, d: 0.05,
+      StdMiles: 15_000, ReducedMiles: 12_000, PriceNewCar: 43_000, FixedCost: 2_500, d: 0.05, DecayFraction: 0.25,
       query_state: { age: 7, fuel_economy: 28, fuel_price: 5.5, econ_condition: 95 },
     },
   });

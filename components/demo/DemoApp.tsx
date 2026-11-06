@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import clsx from "clsx";
 import { signedDollars } from "@/lib/format";
+import { fuelShockBody } from "@/lib/fuel";
 import { buildMarketBody, defaultMix, mixIsComplete, type MarketMix } from "@/lib/market";
 import { parseElasticity } from "@/lib/scenario";
 import { baselineRequest, baselineState, fallbackRequest, requestKey, solveStatus, type Answered } from "@/lib/solve-plan";
-import { defaultAnswers, type Answers } from "@/lib/template";
+import { buildSolveBody, defaultAnswers, VEHICLE_RETENTION_TEMPLATE, type Answers } from "@/lib/template";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { AssumptionsPanel, assumptionSummary } from "./AssumptionsPanel";
 import type { VehicleClassTag } from "@/lib/types";
@@ -14,6 +15,7 @@ import { useLatestMarketSolve, useLatestSolve, type SolvedRun, type SolveState }
 import { useTabState } from "./useTab";
 import { ClaudeTab } from "./tabs/ClaudeTab";
 import { CohortsTab } from "./tabs/CohortsTab";
+import { DEFAULT_FUEL_RISE, FuelTab } from "./tabs/FuelTab";
 import { MethodTab } from "./tabs/MethodTab";
 import { PolicyMapTab } from "./tabs/PolicyMapTab";
 import { QuestionTab } from "./tabs/QuestionTab";
@@ -26,6 +28,7 @@ const TABS = [
   { id: "policy-map", label: "Policy map" },
   { id: "replacement", label: "Replacement by age" },
   { id: "scenario", label: "Regulatory cost scenario" },
+  { id: "fuel", label: "Fuel price scenario" },
   { id: "method", label: "Method and assumptions" },
   { id: "claude", label: "Use it in Claude" },
 ] as const;
@@ -55,7 +58,7 @@ function TabList({ selected, onSelect }: { selected: TabId; onSelect: (id: TabId
     refs.current[TABS[next].id]?.focus();
   }
   return (
-    <div role="tablist" aria-label="Demonstration screens" className="no-print grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-7">
+    <div role="tablist" aria-label="Demonstration screens" className="no-print grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-8">
       {TABS.map((tab, index) => {
         const active = tab.id === selected;
         return (
@@ -143,6 +146,20 @@ export function DemoApp() {
   const onMix = useCallback((tag: VehicleClassTag, value: number) => setMix((m) => ({ ...m, [tag]: value })), []);
   const onResetMix = useCallback(() => setMix(defaultMix()), []);
 
+  // The fuel price scenario: the owner profile on a fuel-price grid shifted up, solved once the screen is opened.
+  const [fuelRise, setFuelRise] = useState(DEFAULT_FUEL_RISE);
+  const [fuelOpened, setFuelOpened] = useState(false);
+  useEffect(() => {
+    if (tab === "fuel") setFuelOpened(true);
+  }, [tab]);
+  const fuelBody = useMemo(() => {
+    if (!fuelOpened) return null;
+    const plan = fuelShockBody({ ...buildSolveBody(VEHICLE_RETENTION_TEMPLATE, answers), projection_years: 10 }, fuelRise);
+    return plan.ok ? plan.body : null;
+  }, [fuelOpened, answers, fuelRise]);
+  const fuel = useLatestSolve(fuelBody);
+  const onSetTaper = useCallback((pct: number) => setAnswers((a) => ({ ...a, decay_fraction: pct })), []);
+
   // The engine that last answered decides whether a price change needs a baseline solve (see lib/solve-plan.ts).
   const [answered, setAnswered] = useState<Answered | null>(null);
   const body = useMemo(() => baselineRequest(answers, delta, answered), [answers, delta, answered]);
@@ -184,7 +201,9 @@ export function DemoApp() {
             answers={answers}
             onChange={onChange}
             onReset={onReset}
-            status={tab === "cohorts" ? solveStatus(market) : tab === "scenario" && shocked ? solveStatus(main, fallback) : solveStatus(shown)}
+            status={
+              tab === "cohorts" ? solveStatus(market) : tab === "fuel" ? solveStatus(baseline, fuel) : tab === "scenario" && shocked ? solveStatus(main, fallback) : solveStatus(shown)
+            }
             note={tab === "cohorts" ? "The buyer-cohorts screen uses the seven calibrated cohort rows, not this owner profile." : undefined}
           />
           <div className="min-w-0 space-y-5">
@@ -195,6 +214,7 @@ export function DemoApp() {
               {tab !== "cohorts" && <p>Vehicle to inspect: {summary.vehicle}.</p>}
               {tab === "scenario" && <p>New-vehicle price change: {signedDollars(delta)}.</p>}
               {tab === "cohorts" && <p>New-vehicle price change: {signedDollars(marketDelta)}.</p>}
+              {tab === "fuel" && <p>Rise in fuel prices: +${fuelRise.toFixed(2)} a gallon.</p>}
             </div>
             {TABS.map((t) => (
               <section
@@ -230,6 +250,17 @@ export function DemoApp() {
                     elasticityText={elasticityText}
                     elasticity={elasticity}
                     onElasticity={onElasticity}
+                    onReset={onReset}
+                  />
+                )}
+                {t.id === "fuel" && (
+                  <FuelTab
+                    baseline={baseline}
+                    scenario={fuel}
+                    rise={fuelRise}
+                    onRise={setFuelRise}
+                    taperPct={answers.decay_fraction}
+                    onSetTaper={onSetTaper}
                     onReset={onReset}
                   />
                 )}
