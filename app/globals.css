@@ -145,6 +145,12 @@ body {
   tr {
     break-inside: avoid;
   }
+  /* A Recharts surface keeps the pixel width it measured on screen; its viewBox lets it shrink to the printed column. */
+  .chart-surface .recharts-wrapper,
+  .chart-surface .recharts-surface {
+    max-width: 100% !important;
+    height: auto !important;
+  }
   thead {
     display: table-header-group;
   }

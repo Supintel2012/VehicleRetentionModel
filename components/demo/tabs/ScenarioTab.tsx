@@ -380,6 +380,7 @@ function cohortParts(
             {/* Capped width: a printed page then scales the drawing only a little, so its labels stay legible. */}
             <div className="chart-box max-w-3xl">
               <SeriesLineChart
+                labelledBy="path-title"
                 categories={shock.projection.years.map(String)}
                 xLabel="Year"
                 series={[
@@ -493,6 +494,7 @@ function gridParts(
           />
         </figcaption>
         <SeriesBarChart
+          labelledBy="fallback-chart-title"
           categories={categories}
           series={[
             { label: "Baseline", values: grid.shares.map((s) => s.baseline), color: BASELINE, style: "hatched" },

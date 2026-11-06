@@ -317,6 +317,7 @@ function HazardChart({ data }: { data: MarketSolveData }) {
         />
       </figcaption>
       <SeriesLineChart
+        labelledBy="cohort-hazard-title"
         categories={categories}
         xLabel="Vehicle age (years)"
         series={[
@@ -352,6 +353,7 @@ function SellSignalChart({ data }: { data: MarketSolveData }) {
         />
       </figcaption>
       <SeriesLineChart
+        labelledBy="sell-signal-title"
         categories={categories}
         xLabel="Vehicle age (years)"
         series={[

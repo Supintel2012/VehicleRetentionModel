@@ -92,6 +92,7 @@ export function ReplacementTab({ state, onReset }: { state: SolveState; onReset:
                     />
                   </figcaption>
                   <SeriesBarChart
+                    labelledBy="replacement-chart-title"
                     categories={categories}
                     series={[
                       ...(cohorts ? [{ label: "Fleet-weighted", values: cohorts.replacement_hazard, color: FLEET, style: "solid" as const }] : []),
@@ -115,6 +116,7 @@ export function ReplacementTab({ state, onReset }: { state: SolveState; onReset:
                       <ChartLegend items={[{ label: "Share of all vehicles", color: DISTRIBUTION }]} />
                     </figcaption>
                     <SeriesBarChart
+                      labelledBy="fleet-chart-title"
                       categories={categories}
                       series={[{ label: "Share of fleet", values: cohorts.fleet_share, color: DISTRIBUTION, style: "solid" }]}
                       yMax={shareAxisMax(cohorts.fleet_share)}

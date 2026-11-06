@@ -114,6 +114,7 @@ export function SeriesLineChart({
   format,
   yLabel,
   xLabel,
+  labelledBy,
   yDomain,
   minSpan,
   floor,
@@ -125,6 +126,8 @@ export function SeriesLineChart({
   format: (value: number) => string;
   yLabel: string;
   xLabel: string;
+  /** The id of the chart's caption; names the chart for assistive technology. */
+  labelledBy?: string;
   yDomain?: [number, number];
   minSpan?: number;
   floor?: number;
@@ -139,7 +142,7 @@ export function SeriesLineChart({
     return fittedAxis(values, format, { minSpan, floor });
   }, [series, format, yDomain, minSpan, floor]);
   return (
-    <div className="w-full min-w-0">
+    <div className="chart-surface w-full min-w-0" role="group" aria-labelledby={labelledBy}>
       <p className="mb-1 text-xs text-slate-600">{yLabel}</p>
       <ResponsiveContainer width="100%" height={height} initialDimension={{ width: 640, height }}>
         <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 24, left: 4 }}>
@@ -195,6 +198,7 @@ export function SeriesBarChart({
   format,
   yLabel,
   xLabel,
+  labelledBy,
   yMax = 1,
   height = 260,
   missing = "no vehicles",
@@ -204,15 +208,18 @@ export function SeriesBarChart({
   format: (value: number) => string;
   yLabel: string;
   xLabel: string;
+  /** The id of the chart's caption; names the chart for assistive technology. */
+  labelledBy?: string;
   yMax?: number;
   height?: number;
   missing?: string;
 }) {
   const rows = useMemo(() => rowsOf(categories, series), [categories, series]);
-  const base = useId().replace(/:/g, "");
+  // React's ids carry delimiters (":r1:" or "«r1»") that a url(#…) reference cannot.
+  const base = useId().replace(/[^A-Za-z0-9_-]/g, "");
   const ticks = useMemo(() => niceTicks(0, yMax, 4), [yMax]);
   return (
-    <div className="w-full min-w-0">
+    <div className="chart-surface w-full min-w-0" role="group" aria-labelledby={labelledBy}>
       <p className="mb-1 text-xs text-slate-600">{yLabel}</p>
       <ResponsiveContainer width="100%" height={height} initialDimension={{ width: 640, height }}>
         <BarChart data={rows} margin={{ top: 8, right: 12, bottom: 24, left: 4 }} barCategoryGap="22%" barGap={2}>
