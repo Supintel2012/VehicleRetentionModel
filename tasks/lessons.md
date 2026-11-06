@@ -146,3 +146,19 @@
   without `cohorts: true` was forwarded, solved, and then failed on
   `aggregate.cohorts is missing`. Every shape the adapter cannot render should be an
   input error before the engine runs.
+
+## 2026-11-06 — Interactive charts
+
+- **Hand-drawn SVG is fine to look at and useless to read.** Presenters wanted the
+  value under the pointer; a chart with no hover layer sends them to the table every
+  time. Ship the crosshair and the one-tooltip-for-every-series readout with the
+  chart, plus keyboard stepping, and keep the table beside it so the tooltip never
+  gates a value.
+- **Validate a palette; never pick chart colours by eye.** The SI site's chart colours
+  failed the colour-vision and lightness checks (two adjacent cohort hues were
+  indistinguishable under protanopia). The validated categorical set replaced them;
+  the brand palette stays on the chrome.
+- **A hover test must scroll the chart into the viewport first.** `mouse.move` to
+  coordinates below the fold hovers nothing and the tooltip "never appears". Also
+  scope chart locators to the visible tab panel: hidden panels keep their charts in
+  the DOM, so `.first()` may pick an invisible one.

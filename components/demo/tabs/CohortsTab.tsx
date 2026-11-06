@@ -18,7 +18,8 @@ import {
 import { MARKET_FLEET_PROMPT } from "@/lib/prompts";
 import { resultsView } from "@/lib/solve-plan";
 import type { MarketClass, MarketSolveData, VehicleClassTag } from "@/lib/types";
-import { ChartLegend, LineChart } from "../charts";
+import { ChartLegend } from "../charts";
+import { SeriesLineChart } from "../charts-interactive";
 import { RETRYING } from "../run";
 import type { MarketState } from "../useSolve";
 import { ActionLegend, CopyButton, ErrorNotice, LoadingNotice, Notice, SectionHeading, SourceLine, Stat } from "../ui";
@@ -35,19 +36,25 @@ import { PriceControl } from "./ScenarioTab";
  * Every figure is read from that response.
  */
 
-/** One colour per cohort from the Supported Intelligence chart palette, plus the market in slate. */
+/**
+ * One colour per cohort, in fixed order, from a categorical palette that passes
+ * the colour-vision and lightness checks of the dataviz method (the SI site's
+ * chart colours did not: two pairs were indistinguishable under protanopia).
+ * The market is a reference line in the page's ink, dashed, not a series
+ * colour. Every chart has its table, so no value depends on colour alone.
+ */
 const COHORT_COLORS: Record<VehicleClassTag, string> = {
-  ECO: "#00b4d8",
-  ENT: "#81b29a",
-  MID: "#3d5a80",
-  PKP: "#ee6c4d",
-  LUX: "#6a4c93",
-  LSUV: "#f6bd60",
-  EXO: "#293241",
+  ECO: "#2a78d6",
+  ENT: "#eb6834",
+  MID: "#1baf7a",
+  PKP: "#eda100",
+  LUX: "#e87ba4",
+  LSUV: "#008300",
+  EXO: "#6250d6",
 };
 const MARKET_COLOR = "#0f172a";
-const UNIFORM = "#98c1d9";
-const STATIONARY = "#6a4c93";
+const UNIFORM = "#2a78d6";
+const STATIONARY = "#eb6834";
 
 function ageCategories(data: MarketSolveData): string[] {
   return data.grids.age.map((age, i) => (i === data.dims.nAge - 1 ? `${age}+` : String(age)));
@@ -298,7 +305,6 @@ function CohortTable({ data, hasShock }: { data: MarketSolveData; hasShock: bool
 
 function HazardChart({ data }: { data: MarketSolveData }) {
   const categories = ageCategories(data);
-  const years = data.grids.age;
   return (
     <figure className="panel min-w-0 p-4">
       <figcaption id="cohort-hazard-title" className="mb-3 space-y-2">
@@ -310,20 +316,17 @@ function HazardChart({ data }: { data: MarketSolveData }) {
           ]}
         />
       </figcaption>
-      <LineChart
-        labelledBy="cohort-hazard-title"
-        years={years}
+      <SeriesLineChart
         categories={categories}
         xLabel="Vehicle age (years)"
         series={[
-          ...data.classes.map((c) => ({ label: c.tag, values: c.fleet.replacement_hazard, color: COHORT_COLORS[c.tag], marker: "none" as const, width: 2 })),
-          { label: "Market", values: data.market.replacement_hazard, color: MARKET_COLOR, dashed: true, marker: "square", width: 3 },
+          ...data.classes.map((c) => ({ label: c.tag, values: c.fleet.replacement_hazard, color: COHORT_COLORS[c.tag] })),
+          { label: "Market", values: data.market.replacement_hazard, color: MARKET_COLOR, dashed: true, width: 3 },
         ]}
         format={(v) => percent(v, 0)}
         yLabel="Share of the vehicles at that age"
-        minSpan={1}
-        floor={0}
-        height={300}
+        yDomain={[0, 1]}
+        height={320}
       />
       <p className="mt-2 text-sm leading-snug text-slate-600">
         A gap in a line is an age the cohort&apos;s steady-state fleet never reaches. The top age stands for that age or older, so a cohort
@@ -348,20 +351,17 @@ function SellSignalChart({ data }: { data: MarketSolveData }) {
           ]}
         />
       </figcaption>
-      <LineChart
-        labelledBy="sell-signal-title"
-        years={data.grids.age}
+      <SeriesLineChart
         categories={categories}
         xLabel="Vehicle age (years)"
         series={[
-          { label: "Equal weight", values: data.market.grid_share_sell, color: UNIFORM, marker: "circle" },
-          ...(stationary ? [{ label: "Long-run conditions", values: stationary, color: STATIONARY, marker: "circle" as const }] : []),
-          { label: "Fleet-weighted", values: data.market.replacement_hazard, color: MARKET_COLOR, dashed: true, marker: "square", width: 3 },
+          { label: "Equal weight", values: data.market.grid_share_sell, color: UNIFORM },
+          ...(stationary ? [{ label: "Long-run conditions", values: stationary, color: STATIONARY }] : []),
+          { label: "Fleet-weighted", values: data.market.replacement_hazard, color: MARKET_COLOR, dashed: true, width: 3 },
         ]}
         format={(v) => percent(v, 0)}
         yLabel="Share at that age"
-        minSpan={1}
-        floor={0}
+        yDomain={[0, 1]}
       />
       <p className="mt-2 text-sm leading-snug text-slate-600">
         The first two are the aggregate sell signals of the ADOS 2026 MATLAB report (uniform and stationary weights), share-weighted

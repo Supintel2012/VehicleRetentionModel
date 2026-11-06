@@ -15,7 +15,8 @@ import {
 import { decimal, dollars, percent, signedDollars, signedPercent } from "@/lib/format";
 import { resultsView } from "@/lib/solve-plan";
 import type { ChangedState, SolveData } from "@/lib/types";
-import { ChangeBars, ChartLegend, GroupedBarChart, LineChart } from "../charts";
+import { ChangeBars, ChartLegend } from "../charts";
+import { SeriesBarChart, SeriesLineChart } from "../charts-interactive";
 import { RETRYING, viewOf, type RunView } from "../run";
 import type { SolveState } from "../useSolve";
 import { ErrorNotice, LoadingNotice, Notice, SectionHeading, SourceLine, Stat, SubHeading } from "../ui";
@@ -25,7 +26,7 @@ export const PRICE_LIMIT = 3_000;
 export const DEFAULT_PRICE_CHANGE = 1_000;
 
 const BASELINE = "#475569";
-const SCENARIO = "#1e3a8a";
+const SCENARIO = "#2a78d6";
 
 /**
  * The new-vehicle price change, in $250 steps. With `basePrice` the control
@@ -378,12 +379,12 @@ function cohortParts(
           <>
             {/* Capped width: a printed page then scales the drawing only a little, so its labels stay legible. */}
             <div className="chart-box max-w-3xl">
-              <LineChart
-                labelledBy="path-title"
-                years={shock.projection.years}
+              <SeriesLineChart
+                categories={shock.projection.years.map(String)}
+                xLabel="Year"
                 series={[
-                  { label: "Baseline", values: baselinePath, color: BASELINE, dashed: true, marker: "circle" },
-                  { label: "Scenario", values: shock.projection.replacement_rate, color: SCENARIO, marker: "square" },
+                  { label: "Baseline", values: baselinePath, color: BASELINE, dashed: true },
+                  { label: "Scenario", values: shock.projection.replacement_rate, color: SCENARIO },
                 ]}
                 format={(v) => percent(v, 2)}
                 yLabel="Share of vehicles replaced"
@@ -491,8 +492,7 @@ function gridParts(
             ]}
           />
         </figcaption>
-        <GroupedBarChart
-          labelledBy="fallback-chart-title"
+        <SeriesBarChart
           categories={categories}
           series={[
             { label: "Baseline", values: grid.shares.map((s) => s.baseline), color: BASELINE, style: "hatched" },
@@ -501,6 +501,7 @@ function gridParts(
           yLabel="Share of the states at that age"
           xLabel="Vehicle age (years)"
           format={(v) => percent(v, 0)}
+          missing="none"
         />
         <table className="data-table mt-4">
           <caption className="mb-1 text-left text-sm font-semibold text-slate-900">Sell states by vehicle age (ages with none are left out)</caption>

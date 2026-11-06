@@ -4,12 +4,13 @@ import clsx from "clsx";
 import { gridShareByAge } from "@/lib/policy";
 import { percent } from "@/lib/format";
 import type { SolveData } from "@/lib/types";
-import { ChartLegend, GroupedBarChart } from "../charts";
+import { ChartLegend } from "../charts";
+import { SeriesBarChart } from "../charts-interactive";
 import { WithRun } from "../run";
 import type { SolveState } from "../useSolve";
 import { Notice, SectionHeading, SourceLine, SubHeading } from "../ui";
 
-const FLEET = "#1e3a8a";
+const FLEET = "#2a78d6";
 const GRID_SHARE = "#475569";
 const DISTRIBUTION = "#64748b";
 
@@ -90,12 +91,11 @@ export function ReplacementTab({ state, onReset }: { state: SolveState; onReset:
                       ]}
                     />
                   </figcaption>
-                  <GroupedBarChart
-                    labelledBy="replacement-chart-title"
+                  <SeriesBarChart
                     categories={categories}
                     series={[
                       ...(cohorts ? [{ label: "Fleet-weighted", values: cohorts.replacement_hazard, color: FLEET, style: "solid" as const }] : []),
-                      { label: "Equal-weight", values: grid.map((g) => g.share), color: GRID_SHARE, style: "hatched" },
+                      { label: "Equal-weight", values: grid.map((g) => g.share), color: GRID_SHARE, style: "hatched" as const },
                     ]}
                     yLabel={cohorts ? "Share at that age (see legend)" : "Share of the states at that age"}
                     xLabel="Vehicle age (years)"
@@ -114,8 +114,7 @@ export function ReplacementTab({ state, onReset }: { state: SolveState; onReset:
                       <span className="block text-sm font-semibold text-slate-900">Steady-state fleet by vehicle age</span>
                       <ChartLegend items={[{ label: "Share of all vehicles", color: DISTRIBUTION }]} />
                     </figcaption>
-                    <GroupedBarChart
-                      labelledBy="fleet-chart-title"
+                    <SeriesBarChart
                       categories={categories}
                       series={[{ label: "Share of fleet", values: cohorts.fleet_share, color: DISTRIBUTION, style: "solid" }]}
                       yMax={shareAxisMax(cohorts.fleet_share)}
