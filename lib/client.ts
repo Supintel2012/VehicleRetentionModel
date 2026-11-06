@@ -1,4 +1,4 @@
-import type { SolveErrorResponse, SolveResponse } from "./types";
+import type { MarketSolveResponse, SolveErrorResponse, SolveResponse } from "./types";
 
 /** A failed solve whose message is plain language and safe to show as is. */
 export class SolveRequestError extends Error {
@@ -33,7 +33,7 @@ function isErrorResponse(value: unknown): value is SolveErrorResponse {
   );
 }
 
-function isSolveResponse(value: unknown): value is SolveResponse {
+function isSuccess(value: unknown): value is SolveResponse | MarketSolveResponse {
   return (
     isRecord(value) &&
     value.status === "success" &&
@@ -41,6 +41,14 @@ function isSolveResponse(value: unknown): value is SolveResponse {
     typeof value.attribution === "string" &&
     Array.isArray(value.warnings)
   );
+}
+
+function isSolveResponse(value: unknown): value is SolveResponse {
+  return isSuccess(value) && value.data.kind !== "market";
+}
+
+function isMarketResponse(value: unknown): value is MarketSolveResponse {
+  return isSuccess(value) && value.data.kind === "market";
 }
 
 /**
@@ -59,10 +67,7 @@ export interface SolveOptions {
   signal?: AbortSignal;
 }
 
-export async function solveVehicleRetention(
-  body: Record<string, unknown>,
-  options: SolveOptions = {},
-): Promise<SolveResponse> {
+async function post<R>(body: Record<string, unknown>, accept: (payload: unknown) => payload is R, options: SolveOptions): Promise<R> {
   const { signal } = options;
   if (signal?.aborted) throw new SolveCancelledError();
   // A timer, not AbortSignal.timeout(), and a listener, not AbortSignal.any():
@@ -91,10 +96,20 @@ export async function solveVehicleRetention(
     }
     const payload: unknown = await r.json().catch(() => null);
     if (signal?.aborted) throw new SolveCancelledError();
-    if (r.ok && isSolveResponse(payload)) return payload;
+    if (r.ok && accept(payload)) return payload;
     throw new SolveRequestError(timedOut ? TIMEOUT_MESSAGE : solveErrorMessage(r.status, payload));
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener("abort", cancel);
   }
+}
+
+/** One cohort's solve (the assumptions panel's values). */
+export function solveVehicleRetention(body: Record<string, unknown>, options: SolveOptions = {}): Promise<SolveResponse> {
+  return post(body, isSolveResponse, options);
+}
+
+/** The market run: every buyer cohort in one call (lib/market.ts buildMarketBody). */
+export function solveMarket(body: Record<string, unknown>, options: SolveOptions = {}): Promise<MarketSolveResponse> {
+  return post(body, isMarketResponse, options);
 }

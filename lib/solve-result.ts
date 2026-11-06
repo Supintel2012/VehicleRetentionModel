@@ -9,13 +9,15 @@ import type {
   SolveSummary,
   StateRow,
 } from "./types.ts";
-import type { SolveParameters } from "./solve-input.ts";
+import { isMarketParameters, type AnySolveParameters, type MarketSolveParameters, type SolveParameters } from "./solve-input.ts";
+import { adaptMarketSolveData, checkMarketAgainstRequest } from "./market-result.ts";
+import type { MarketSolveData } from "./types.ts";
 
 /**
  * Adapter from an RR Toolbox MCP `run_decision_model` result to the
  * SolveResponse shape the wizard renders.
  *
- * The run envelope (`raw.data` is the ADOS 2026 v1c engine output) arrives as
+ * The run envelope (`raw.data` is the ADOS 2026 engine output) arrives as
  * JSON text. structuredContent is used only when it is that envelope: with MCP
  * Apps enabled the RR Toolbox puts a display view-model there instead (no
  * `raw`) and keeps the envelope in the text. MCP results may omit
@@ -41,7 +43,7 @@ export const ACTIONS: readonly ActionName[] = ["drive", "sell", "reduce"];
  * two decimals (0.09 for 7/80) is within half a cent of the exact value.
  */
 const SHARE_TOLERANCE = 0.005;
-/** At most this many echoed parameters are kept (the v1c engine echoes about 40). */
+/** At most this many echoed parameters are kept (the engine echoes about 45). */
 const MAX_PARAMS = 80;
 /** Echoed inputs compared with the request; the engine stores them as floats. */
 const ECHOED_INPUTS = ["StdMiles", "ReducedMiles", "PriceNewCar", "FixedCost", "d", "projection_years"] as const;
@@ -64,8 +66,8 @@ export class SolveProtocolError extends Error {
   name = "SolveProtocolError";
 }
 
-export interface AdaptedSolve {
-  data: SolveData;
+export interface AdaptedSolve<D = SolveData | MarketSolveData> {
+  data: D;
   attribution: string;
   warnings: string[];
 }
@@ -73,50 +75,50 @@ export interface AdaptedSolve {
 type Dims = SolveData["dims"];
 type Grids = SolveData["grids"];
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function record(value: unknown): Record<string, unknown> {
+export function record(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {};
 }
 
-function fail(detail: string): never {
+export function fail(detail: string): never {
   throw new SolveProtocolError(detail);
 }
 
-function finite(value: unknown, field: string): number {
+export function finite(value: unknown, field: string): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fail(`${field} is not a finite number`);
 }
 
-function positiveInteger(value: unknown, field: string): number {
+export function positiveInteger(value: unknown, field: string): number {
   return Number.isInteger(value) && (value as number) > 0 ? (value as number) : fail(`${field} is not a positive integer`);
 }
 
-function finiteArray(value: unknown, length: number, field: string): number[] {
+export function finiteArray(value: unknown, length: number, field: string): number[] {
   if (!Array.isArray(value) || value.length !== length) fail(`${field} does not have ${length} entries`);
   return value.map((entry, i) => finite(entry, `${field}[${i}]`));
 }
 
-function finiteOrNull(value: unknown, field: string): number | null {
+export function finiteOrNull(value: unknown, field: string): number | null {
   return value === null ? null : finite(value, field);
 }
 
-function share(value: unknown, field: string): number {
+export function share(value: unknown, field: string): number {
   const x = finite(value, field);
   return x >= -SHARE_TOLERANCE && x <= 1 + SHARE_TOLERANCE ? x : fail(`${field} is not a share between 0 and 1`);
 }
 
-function shareOrNull(value: unknown, field: string): number | null {
+export function shareOrNull(value: unknown, field: string): number | null {
   return value === null ? null : share(value, field);
 }
 
-function listOf<T>(value: unknown, length: number, field: string, item: (entry: unknown, field: string) => T): T[] {
+export function listOf<T>(value: unknown, length: number, field: string, item: (entry: unknown, field: string) => T): T[] {
   if (!Array.isArray(value) || value.length !== length) fail(`${field} does not have ${length} entries`);
   return value.map((entry, i) => item(entry, `${field}[${i}]`));
 }
 
-function textOf(tool: Record<string, unknown>): string | undefined {
+export function textOf(tool: Record<string, unknown>): string | undefined {
   if (!Array.isArray(tool.content)) return undefined;
   const parts = tool.content
     .map((item) => record(item))
@@ -228,7 +230,7 @@ function parseQueryState(value: unknown, rows: StateRow[], policy: number[]): Qu
   };
 }
 
-function parseProjection(value: unknown, field: string): CohortProjection {
+export function parseProjection(value: unknown, field: string): CohortProjection {
   const projection = record(value);
   if (typeof projection.start !== "string") fail(`${field}.start is not a string`);
   if (
@@ -247,7 +249,7 @@ function parseProjection(value: unknown, field: string): CohortProjection {
   };
 }
 
-function actionName(value: unknown, field: string): ActionName {
+export function actionName(value: unknown, field: string): ActionName {
   return ACTIONS.includes(value as ActionName) ? (value as ActionName) : fail(`${field} is not an action name`);
 }
 
@@ -497,9 +499,14 @@ export function checkAgainstRequest(data: SolveData, request: SolveParameters): 
 
 /**
  * Parse a `run_decision_model` tool result. With `request`, also check the run
- * against it (checkAgainstRequest). Throws SolveToolError or SolveProtocolError.
+ * against it (checkAgainstRequest, or checkMarketAgainstRequest for a market
+ * run, which `raw.data.vehicle_classes` marks); a market run is accepted only
+ * with its request. Throws SolveToolError or SolveProtocolError.
  */
-export function adaptToolResult(result: unknown, request?: SolveParameters): AdaptedSolve {
+export function adaptToolResult(result: unknown, request: MarketSolveParameters): AdaptedSolve<MarketSolveData>;
+export function adaptToolResult(result: unknown, request?: SolveParameters): AdaptedSolve<SolveData>;
+export function adaptToolResult(result: unknown, request?: AnySolveParameters): AdaptedSolve;
+export function adaptToolResult(result: unknown, request?: AnySolveParameters): AdaptedSolve {
   const tool = record(result);
   if (tool.isError === true) throw new SolveToolError(textOf(tool) ?? "The tool reported an error without detail.");
 
@@ -528,8 +535,18 @@ export function adaptToolResult(result: unknown, request?: SolveParameters): Ada
 
   const raw = record(envelope.raw);
   if (raw.status !== "success") fail("raw.status is not success");
-  const data = adaptSolveData(raw.data);
-  if (request) checkAgainstRequest(data, request);
+  const market = isRecord(raw.data) && raw.data.vehicle_classes !== undefined;
+  if (market !== (request !== undefined && isMarketParameters(request))) {
+    fail(market ? "a market run answered a single-cohort request" : "a single-cohort run answered a market request");
+  }
+  let data: SolveData | MarketSolveData;
+  if (market) {
+    data = adaptMarketSolveData(raw.data);
+    if (request && isMarketParameters(request)) checkMarketAgainstRequest(data, request);
+  } else {
+    data = adaptSolveData(raw.data);
+    if (request && !isMarketParameters(request)) checkAgainstRequest(data, request);
+  }
   return {
     data,
     attribution: envelope.attribution.trim().slice(0, 2000),

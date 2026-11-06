@@ -8,19 +8,25 @@ import { decimal, dollars, MINUS, percent, signedDollars, signedPercent } from "
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/ados-cohorts-run.json", import.meta.url), "utf8"));
 const data = adaptSolveData(fixture.data);
+/** The v2d engine's echo of the MID cohort's inputs, from the market fleet run through the live API route. */
+const v2d = JSON.parse(readFileSync(new URL("./fixtures/ados-market-fleet-run.json", import.meta.url), "utf8")).envelope.raw.data
+  .vehicle_classes.MID.params as Record<string, number>;
 
-test("the ADOS 2026 v1c defaults written here match the engine's own params echo", () => {
+test("the ADOS 2026 defaults written here match the engine's own params echo (v2d sheet, MID cohort)", () => {
   for (const [key, value] of Object.entries(ADOS_DEFAULTS)) {
-    assert.equal(data.params?.[key], value, key);
+    assert.equal(v2d[key], value, key);
   }
+  // The v1c fixture differs from the sheet exactly where v2d changed it.
+  assert.equal(data.params?.ReducedMiles, 8_000);
+  assert.equal(data.params?.p_fuel_up, 0.25);
 });
 
-test("the panel's defaults are the engine's own defaults except reduced miles, which is AEG's 12,000", () => {
+test("the panel's defaults are the engine's own defaults, reduced miles included since the v2d sheet", () => {
   const body = buildSolveBody(VEHICLE_RETENTION_TEMPLATE, defaultAnswers());
   for (const key of PANEL_KEYS) {
-    assert.equal(body[key], key === "ReducedMiles" ? 12_000 : ADOS_DEFAULTS[key], key);
+    assert.equal(body[key], ADOS_DEFAULTS[key], key);
   }
-  assert.equal(ADOS_DEFAULTS.ReducedMiles, 8_000, "the engine's own default, stated on the panel");
+  assert.equal(ADOS_DEFAULTS.ReducedMiles, 12_000, "AEG's 12,000, now the engine's own default");
 });
 
 test("values come from the echo when present; otherwise the panel inputs from the request and defaults for the rest", () => {
@@ -45,8 +51,8 @@ test("the parameter table tags the panel's inputs Assumed and the engine default
   assert.equal(byLabel["Annual discount rate"].value, "5%");
   assert.equal(byLabel["Driving enjoyment of a new vehicle"].value, "$4.00");
   assert.equal(byLabel["Driving enjoyment of a new vehicle"].provenance, "Illustrative");
-  assert.equal(byLabel["Fuel price next year: one level down / same / one level up"].value, "25% / 50% / 25%");
-  assert.equal(byLabel["Fuel economy of a kept vehicle next year: one level down / same / one level up"].value, "10% / 85% / 5%");
+  assert.equal(byLabel["Fuel price next year: one level down / same / one level up"].value, "15% / 50% / 35%");
+  assert.equal(byLabel["Fuel economy of a kept vehicle next year: one level down / same / one level up"].value, "15% / 70% / 15%");
   assert.equal(byLabel["Growth of repair cost per year of age"].value, "15%");
   assert.deepEqual(
     rows.filter((row) => row.provenance === "Assumed").map((row) => row.label),

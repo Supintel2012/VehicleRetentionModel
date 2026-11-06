@@ -4,7 +4,7 @@ import type { Field, FieldOption, Template } from "./types";
  * The assumption fields of the analyst demo, and their mapping to the
  * solve request.
  *
- * "Owner profile" sets five ADOS 2026 v1c parameters; each default is the
+ * "Owner profile" sets five ADOS 2026 parameters; each default is the
  * engine's own default (ModelInputs), so "Reset to defaults" reproduces the
  * published default run. "Vehicle to inspect"
  * picks one state of the default grid for the `query_state` lookup; its
@@ -16,7 +16,7 @@ import type { Field, FieldOption, Template } from "./types";
 export const DEFAULT_GRID = {
   age: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
   mpg: [26, 28, 30, 32],
-  fuel: [4, 4.5, 5, 5.5, 6],
+  fuel: [4, 4.5, 5, 5.5, 6, 6.5, 7],
   econ: [90, 100, 110, 120],
 } as const;
 
@@ -50,7 +50,7 @@ const OWNER_FIELDS: Field[] = [
     min: 2_000,
     max: 15_000,
     step: 500,
-    // 12,000 at AEG's request (May 2026); the engine's own default is 8,000.
+    // 12,000 at AEG's request (May 2026); since the v2d sheet it is the engine's own default too.
     default: 12_000,
     unit: "miles",
     paramKey: "ReducedMiles",
@@ -120,7 +120,7 @@ const VEHICLE_FIELDS: Field[] = [
     prompt: "Fuel price",
     options: options(DEFAULT_GRID.fuel, (price) => `$${price.toFixed(2)} a gallon`),
     min: 4,
-    max: 6,
+    max: 7,
     step: 0.5,
     default: 5.5,
     paramKey: "query_state.fuel_price",
@@ -140,7 +140,7 @@ const VEHICLE_FIELDS: Field[] = [
 ];
 
 export const VEHICLE_RETENTION_TEMPLATE: Template = {
-  name: "Auto Drive-or-Sell™ · ADOS 2026 v1c",
+  name: "Auto Drive-or-Sell™ · ADOS 2026",
   steps: [
     { id: "owner", title: "Owner profile", questions: OWNER_FIELDS },
     {

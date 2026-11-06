@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="121" viewBox="0 0 120 121" fill="none" role="img" aria-label="Supported Intelligence Lightbulb Logo (Light Mode)">
+  <title>Supported Intelligence</title>
+  <defs>
+    <filter id="si-bulb-glow-light" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" />
+    </filter>
+  </defs>
+
+  <!-- Light Background -->
+  <rect id="background" width="120" height="121" fill="#FFFFFF" />
+
+  <!-- Lightbulb / Hexagonal "S" Icon -->
+  <g id="lightbulb-icon">
+    <!-- Subtle Warm Golden Glow for Light Background -->
+    <g id="bulb-glow" fill="#F6A800" opacity="0.35" filter="url(#si-bulb-glow-light)">
+      <path d="M51.56 72.77 L70.03 44.50 L75.61 51.50 L57.14 80.99 L43.09 80.99 L25.25 51.60 L25.21 51.55 L25.25 51.50 L43.09 22.19 L57.25 22.18 L52.25 30.62 L47.75 30.62 L35.11 51.55 L48.00 72.76 L51.56 72.77 Z" />
+      <path d="M67.11 72.75 L72.11 72.75 L85.00 51.55 L72.09 30.62 L67.53 30.62 L49.64 58.75 L44.66 51.16 L62.45 22.18 L62.84 22.19 L76.73 22.19 L77.55 23.64 L94.76 51.50 L94.79 51.55 L94.76 51.60 L76.76 80.98 L62.20 81.02 L67.11 72.75 Z" />
+    </g>
+
+    <!-- Hexagonal "S" Body -->
+    <g id="bulb-hexagon" fill="#F6B618">
+      <path id="bulb-hex-left" d="M51.56 72.77 L70.03 44.50 L75.61 51.50 L57.14 80.99 L43.09 80.99 L25.25 51.60 L25.21 51.55 L25.25 51.50 L43.09 22.19 L57.25 22.18 L52.25 30.62 L47.75 30.62 L35.11 51.55 L48.00 72.76 L51.56 72.77 Z" />
+      <path id="bulb-hex-right" d="M67.11 72.75 L72.11 72.75 L85.00 51.55 L72.09 30.62 L67.53 30.62 L49.64 58.75 L44.66 51.16 L62.45 22.18 L62.84 22.19 L76.73 22.19 L77.55 23.64 L94.76 51.50 L94.79 51.55 L94.76 51.60 L76.76 80.98 L62.20 81.02 L67.11 72.75 Z" />
+    </g>
+
+    <!-- Lightbulb Screw Base (Black for Light View) -->
+    <g id="bulb-base" fill="#000000">
+      <path id="bulb-base-upper" d="M72.97 84.12 L46.88 84.12 C45.08 84.12 43.59 85.52 43.59 87.23 L43.59 87.23 C43.59 88.95 45.08 90.35 46.88 90.35 L72.97 90.35 C74.78 90.35 76.26 88.95 76.26 87.23 L76.26 87.23 C76.26 85.52 74.78 84.12 72.97 84.12 Z" />
+      <path id="bulb-base-lower" d="M64.31 92.59 L55.55 92.59 C53.73 92.59 52.25 93.99 52.25 95.70 L52.25 95.70 C52.25 97.41 53.73 98.82 55.55 98.82 L64.31 98.82 C66.11 98.82 67.58 97.41 67.58 95.70 L67.58 95.70 C67.58 93.99 66.11 92.59 64.31 92.59 Z" />
+    </g>
+  </g>
+</svg>

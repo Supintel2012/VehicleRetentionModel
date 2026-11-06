@@ -6,8 +6,10 @@ const COHORT_WORDS = /cohorts|price_shock|replacement_hazard|fleet-weighted|hold
 
 test("the fleet-weighted prompt is offered only when the answering engine returned the cohort output", () => {
   const withCohorts = examplePrompts(true);
-  assert.equal(withCohorts.length, 3);
-  assert.equal(withCohorts.filter((p) => COHORT_WORDS.test(p.prompt)).length, 1);
+  assert.equal(withCohorts.length, 4);
+  // The single-cohort fleet prompt and the market prompt (every cohort in one call).
+  assert.equal(withCohorts.filter((p) => COHORT_WORDS.test(p.prompt)).length, 2);
+  assert.match(withCohorts[2].prompt, /market_2026_fleet/);
   for (const hasCohorts of [false, null]) {
     const prompts = examplePrompts(hasCohorts);
     assert.equal(prompts.length, 3);

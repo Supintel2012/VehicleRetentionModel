@@ -1,37 +1,42 @@
+import Image from "next/image";
 import { Info } from "lucide-react";
 import { CONTACT_EMAIL, DISCLAIMER } from "@/lib/site";
 import { PrintButton } from "./PrintButton";
 
-function Mark() {
-  return (
-    <svg viewBox="0 0 32 32" className="h-9 w-9 shrink-0" aria-hidden>
-      <rect width="32" height="32" rx="6" fill="#1e3a8a" />
-      <rect x="6" y="6" width="9" height="9" rx="1.5" fill="#fff" />
-      <rect x="17" y="6" width="9" height="9" rx="1.5" fill="#fff" />
-      <rect x="6" y="17" width="9" height="9" rx="1.5" fill="#fff" />
-      <rect x="17" y="17" width="9" height="9" rx="1.5" fill="#f59e0b" />
-    </svg>
-  );
-}
-
+/**
+ * The page's masthead in the Supported Intelligence site's manner: the SI
+ * mark and name, the model's title, and the two firms behind it. Below it,
+ * the notice Anderson Economic Group requires on every screen.
+ */
 export function SiteHeader() {
   return (
     <>
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <Mark />
+          <div className="flex min-w-0 items-center gap-4">
+            <a href="https://www.supportedintelligence.com" className="flex shrink-0 items-center gap-2.5 no-print-url" aria-label="Supported Intelligence">
+              <Image
+                src="/logos/supported-intelligence-logo-light.svg"
+                alt=""
+                width={44}
+                height={44}
+                priority
+                className="h-11 w-11 rounded-md"
+              />
+              <span className="hidden text-sm font-semibold leading-tight text-slate-900 md:block">
+                Supported
+                <br />
+                Intelligence
+              </span>
+            </a>
+            <div className="hidden h-10 w-px bg-slate-200 md:block" aria-hidden />
             <div className="min-w-0">
-              <h1 className="text-base font-semibold leading-snug text-slate-900 sm:text-lg">
-                <span className="block sm:inline">Auto Drive-or-Sell™</span>{" "}
-                <span className="hidden text-slate-400 sm:inline" aria-hidden>
-                  {" · "}
-                </span>
-                <span className="whitespace-nowrap">
-                  ADOS 2026 v1c <span className="text-slate-400" aria-hidden>·</span> Rapid Recursive®
-                </span>
+              <h1 className="text-base font-bold leading-snug tracking-tight text-slate-900 sm:text-lg">
+                Auto Drive-or-Sell™ buyer-cohort model
               </h1>
-              <p className="text-sm text-slate-600">Anderson Economic Group LLC with Supported Intelligence LLC</p>
+              <p className="text-sm text-slate-600">
+                ADOS 2026 on the Rapid Recursive® Toolbox. Anderson Economic Group LLC with Supported Intelligence LLC.
+              </p>
             </div>
           </div>
           <div className="hidden shrink-0 sm:block">
@@ -39,9 +44,9 @@ export function SiteHeader() {
           </div>
         </div>
       </header>
-      <div role="note" aria-label="Demonstration notice" className="border-b border-slate-200 bg-slate-100">
+      <div role="note" aria-label="Demonstration notice" className="border-b border-slate-200 bg-slate-50">
         <div className="mx-auto flex max-w-7xl items-start gap-3 px-4 py-3 sm:px-6">
-          <Info className="mt-0.5 h-5 w-5 shrink-0 text-accent-700" aria-hidden />
+          <Info className="mt-0.5 h-5 w-5 shrink-0 text-accent-600" aria-hidden />
           <p className="text-[15px] font-medium leading-relaxed text-slate-900">
             {DISCLAIMER}{" "}
             <a href={`mailto:${CONTACT_EMAIL}`} className="link whitespace-nowrap">

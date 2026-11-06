@@ -44,7 +44,22 @@ const CUSTOM_PROFILE: ExamplePrompt = {
     "model's defaults?",
 };
 
-/** The three prompts to show; `hasCohorts` is whether the run answering this page carried the cohort output (null before any answer). */
+/** The buyer-cohorts screen's own call, as a prompt: the market_2026_fleet preset of the RR Toolbox. */
+export const MARKET_FLEET_PROMPT: ExamplePrompt = {
+  title: "All seven buyer cohorts and the market, in one call",
+  prompt:
+    "Using the Rapid Recursive Toolbox, run the AutoDriveOrSell preset market_2026_fleet (the 2026 market mix with cohorts set to " +
+    "true and a $1,000 new-vehicle price shock). For each vehicle class and for the market, report the annual replacement rate, the " +
+    "average holding period, the share of vehicles replaced at each age and the elasticities for the price change. Say how the " +
+    "market figures are weighted, that a $1,000 change is a different percent of each class's price, and what the figures do not " +
+    "represent.",
+};
+
+/**
+ * The prompts to show; `hasCohorts` is whether the run answering this page
+ * carried the cohort output (null before any answer). The two fleet prompts,
+ * single cohort and market, are offered only then.
+ */
 export function examplePrompts(hasCohorts: boolean | null): ExamplePrompt[] {
-  return [PRICE_COMPARISON, hasCohorts === true ? FLEET_WEIGHTED : EQUAL_WEIGHT, CUSTOM_PROFILE];
+  return hasCohorts === true ? [PRICE_COMPARISON, FLEET_WEIGHTED, MARKET_FLEET_PROMPT, CUSTOM_PROFILE] : [PRICE_COMPARISON, EQUAL_WEIGHT, CUSTOM_PROFILE];
 }

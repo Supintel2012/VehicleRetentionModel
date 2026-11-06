@@ -14,7 +14,16 @@
  * Reduced miles must be below standard miles: the page describes the third
  * action as keeping the vehicle and driving fewer miles, which is only true
  * then.
+ *
+ * A market request (market_shares) is the other shape: the mix of buyer
+ * cohorts, the fleet switches and nothing else. The engine supplies each
+ * cohort's inputs and refuses PriceNewCar, StdMiles and d beside
+ * market_shares; this demo also leaves FixedCost and ReducedMiles at the
+ * engine's defaults there, so the cohort table on the page is the calibration
+ * as published.
  */
+
+import type { VehicleClassTag } from "./types.ts";
 
 export interface QueryState {
   age: number;
@@ -23,7 +32,7 @@ export interface QueryState {
   econ_condition: number;
 }
 
-/** ADOS 2026 v1c parameters this demo lets a visitor change. */
+/** ADOS 2026 parameters this demo lets a visitor change. */
 export interface SolveParameters {
   StdMiles?: number;
   ReducedMiles?: number;
@@ -39,6 +48,24 @@ export interface SolveParameters {
   /** Whole years in the cohort projection. */
   projection_years?: number;
 }
+
+/** A market run: every named cohort at its calibrated inputs, weighted by shares of vehicles on the road. */
+export interface MarketSolveParameters {
+  market_shares: Partial<Record<VehicleClassTag, number>>;
+  cohorts?: boolean;
+  price_shock?: number;
+  projection_years?: number;
+}
+
+export type AnySolveParameters = SolveParameters | MarketSolveParameters;
+
+export function isMarketParameters(parameters: AnySolveParameters): parameters is MarketSolveParameters {
+  return "market_shares" in parameters;
+}
+
+export const VEHICLE_CLASS_TAGS: readonly VehicleClassTag[] = ["ECO", "ENT", "MID", "PKP", "LUX", "LSUV", "EXO"];
+/** The engine's own tolerance on the sum of the shares. */
+const SHARE_SUM_TOLERANCE = 1e-6;
 
 type CostParameter = "StdMiles" | "ReducedMiles" | "PriceNewCar" | "FixedCost" | "d";
 
@@ -75,10 +102,10 @@ export const PARAMETER_LIMITS = {
  * (the engine allows 50): the page shows 10.
  */
 /**
- * ADOS 2026 v1c defaults for the two mileages, used to compare them when a
+ * ADOS 2026 defaults for the two mileages (v2d sheet), used to compare them when a
  * request leaves one out (the engine then uses its default).
  */
-export const ENGINE_DEFAULT_MILES = { StdMiles: 15_000, ReducedMiles: 8_000 } as const;
+export const ENGINE_DEFAULT_MILES = { StdMiles: 15_000, ReducedMiles: 12_000 } as const;
 
 export const COHORT_LIMITS = {
   price_shock: { label: "New-vehicle price change", min: -3_000, max: 3_000, format: signedDollars, wholeUnit: "dollars" },
@@ -88,7 +115,7 @@ export const COHORT_LIMITS = {
 export const QUERY_STATE_LIMITS = {
   age: { label: "Vehicle age", min: 0, max: 10, format: (v: number) => `${v} years` },
   fuel_economy: { label: "Fuel economy", min: 26, max: 32, format: (v: number) => `${v} mpg` },
-  fuel_price: { label: "Fuel price", min: 4, max: 6, format: (v: number) => `$${v.toFixed(2)} per gallon` },
+  fuel_price: { label: "Fuel price", min: 4, max: 7, format: (v: number) => `$${v.toFixed(2)} per gallon` },
   econ_condition: { label: "Economic conditions index", min: 90, max: 120, format: String },
 } satisfies Record<keyof QueryState, Limit>;
 
@@ -130,9 +157,51 @@ function checkedNumber(value: unknown, limit: Limit): number {
   return value;
 }
 
+function parseFleetSwitches(body: Record<string, unknown>, parameters: SolveParameters | MarketSolveParameters) {
+  if (body.cohorts !== undefined) {
+    if (typeof body.cohorts !== "boolean") throw new SolveInputError("The cohort setting must be true or false.");
+    parameters.cohorts = body.cohorts;
+  }
+  for (const key of Object.keys(COHORT_LIMITS) as (keyof typeof COHORT_LIMITS)[]) {
+    if (body[key] !== undefined) parameters[key] = checkedNumber(body[key], COHORT_LIMITS[key]);
+  }
+}
+
+/** A market request: the mix of cohorts and the fleet switches, nothing else. */
+export function parseMarketRequest(body: unknown): MarketSolveParameters {
+  if (!isPlainObject(body)) throw new SolveInputError("The request body must be a JSON object.");
+  rejectUnknownKeys(body, ["market_shares", "cohorts", ...Object.keys(COHORT_LIMITS)], "an input of a market run");
+  const mix = body.market_shares;
+  if (!isPlainObject(mix)) throw new SolveInputError("The market mix must give each buyer cohort its share of vehicles.");
+  rejectUnknownKeys(mix, VEHICLE_CLASS_TAGS, "a buyer cohort");
+  const shares: Partial<Record<VehicleClassTag, number>> = {};
+  let total = 0;
+  for (const tag of VEHICLE_CLASS_TAGS) {
+    const share = mix[tag];
+    if (share === undefined) continue;
+    if (typeof share !== "number" || !Number.isFinite(share) || share < 0 || share > 1) {
+      throw new SolveInputError(`The ${tag} share must be a number from 0 to 1.`);
+    }
+    shares[tag] = share;
+    total += share;
+  }
+  if (Object.keys(shares).length === 0) throw new SolveInputError("The market mix must name at least one buyer cohort.");
+  if (Math.abs(total - 1) > SHARE_SUM_TOLERANCE) throw new SolveInputError("The cohort shares must add up to 1.");
+  const parameters: MarketSolveParameters = { market_shares: shares };
+  parseFleetSwitches(body, parameters);
+  return parameters;
+}
+
+/** The route's entry point: a body with market_shares is a market run, anything else a single cohort's. */
+export function parseRequest(body: unknown): AnySolveParameters {
+  if (isPlainObject(body) && body.market_shares !== undefined) return parseMarketRequest(body);
+  return parseSolveRequest(body);
+}
+
 /**
- * Validate a parsed JSON body and return a fresh parameter object holding only
- * whitelisted keys. Throws SolveInputError with a plain-language message.
+ * Validate a parsed JSON body for one cohort's run and return a fresh
+ * parameter object holding only whitelisted keys. Throws SolveInputError with
+ * a plain-language message.
  */
 export function parseSolveRequest(body: unknown): SolveParameters {
   if (!isPlainObject(body)) throw new SolveInputError("The request body must be a JSON object.");
@@ -151,13 +220,7 @@ export function parseSolveRequest(body: unknown): SolveParameters {
       `${PARAMETER_LIMITS.ReducedMiles.label} (${miles(reduced)}) must be less than ${PARAMETER_LIMITS.StdMiles.label.toLowerCase()} (${miles(std)}).`,
     );
   }
-  if (body.cohorts !== undefined) {
-    if (typeof body.cohorts !== "boolean") throw new SolveInputError("The cohort setting must be true or false.");
-    parameters.cohorts = body.cohorts;
-  }
-  for (const key of cohortKeys) {
-    if (body[key] !== undefined) parameters[key] = checkedNumber(body[key], COHORT_LIMITS[key]);
-  }
+  parseFleetSwitches(body, parameters);
 
   if (body.query_state !== undefined) {
     const query = body.query_state;

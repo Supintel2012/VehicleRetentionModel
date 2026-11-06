@@ -1,23 +1,28 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SOLVE_FALLBACK_MESSAGE, SolveRequestError, solveVehicleRetention } from "@/lib/client";
+import { SOLVE_FALLBACK_MESSAGE, SolveRequestError, solveMarket, solveVehicleRetention, type SolveOptions } from "@/lib/client";
 import { createLatestRunner, type LatestRunner } from "@/lib/latest";
 import { requestKey, type RunState } from "@/lib/solve-plan";
-import type { SolveResponse } from "@/lib/types";
+import type { MarketSolveResponse, SolveResponse } from "@/lib/types";
 
 /** Wait after the last change before solving; a burst of slider or keyboard steps costs one request. */
 export const SOLVE_DEBOUNCE_MS = 350;
 
 type Body = Record<string, unknown>;
 
-export interface SolvedRun {
-  response: SolveResponse;
+export interface Run<R> {
+  response: R;
   /** The request this response answers. */
   body: Body;
 }
 
-export interface SolveState extends RunState<SolvedRun> {
+/** One cohort's run, as the single-cohort tabs read it. */
+export type SolvedRun = Run<SolveResponse>;
+/** The market run, as the buyer-cohorts tab reads it. */
+export type MarketRun = Run<MarketSolveResponse>;
+
+export interface RunStateWithRetry<R> extends RunState<Run<R>> {
   /** Plain-language message when the latest request failed (run is then null). */
   error: string | null;
   /** A request for newer inputs is waiting or in flight. */
@@ -25,22 +30,27 @@ export interface SolveState extends RunState<SolvedRun> {
   retry: () => void;
 }
 
+export type SolveState = RunStateWithRetry<SolveResponse>;
+export type MarketState = RunStateWithRetry<MarketSolveResponse>;
+
+type Solver<R> = (body: Body, options: SolveOptions) => Promise<R>;
+
 /**
  * Solve `body` whenever it changes (debounced, latest wins). The first solve
  * starts at once, and a request answered before is answered again from memory.
  * `null` stops solving; the last answer is kept but callers show it only for
  * the request it answers.
  */
-export function useLatestSolve(body: Body | null): SolveState {
+function useLatestRun<R>(body: Body | null, solver: Solver<R>): RunStateWithRetry<R> {
   const key = body === null ? null : requestKey(body);
-  const [state, setState] = useState<Omit<SolveState, "retry">>({ run: null, lastGood: null, error: null, busy: body !== null });
+  const [state, setState] = useState<Omit<RunStateWithRetry<R>, "retry">>({ run: null, lastGood: null, error: null, busy: body !== null });
   const runner = useRef<LatestRunner<Body> | null>(null);
   const started = useRef(false);
 
   useEffect(() => {
-    const current = createLatestRunner<Body, SolveResponse>({
+    const current = createLatestRunner<Body, R>({
       delayMs: SOLVE_DEBOUNCE_MS,
-      run: (request, signal) => solveVehicleRetention(request, { signal }),
+      run: (request, signal) => solver(request, { signal }),
       cacheKey: requestKey,
       onPending: () => setState((s) => (s.busy ? s : { ...s, busy: true })),
       onResult: (response, request) => {
@@ -59,7 +69,7 @@ export function useLatestSolve(body: Body | null): SolveState {
     runner.current = current;
     started.current = false;
     return () => current.cancel();
-  }, []);
+  }, [solver]);
 
   useEffect(() => {
     if (key === null) {
@@ -76,4 +86,12 @@ export function useLatestSolve(body: Body | null): SolveState {
   }, [key]);
 
   return { ...state, retry };
+}
+
+export function useLatestSolve(body: Body | null): SolveState {
+  return useLatestRun(body, solveVehicleRetention);
+}
+
+export function useLatestMarketSolve(body: Body | null): MarketState {
+  return useLatestRun(body, solveMarket);
 }

@@ -58,6 +58,28 @@ export function MethodTab({ state, requestBody }: { state: SolveState; requestBo
     <div className="space-y-8">
       <SectionHeading eyebrow="Method and assumptions">How the model works</SectionHeading>
 
+      <section aria-labelledby="approach-title" className="max-w-3xl space-y-2 text-[15px] leading-relaxed text-slate-700">
+        <SubHeading id="approach-title">Two ways to model a buyer&apos;s decision</SubHeading>
+        <p>
+          Since the 1970s, analysts have described vehicle demand with elasticities: a percent change in price moves purchases by a
+          fixed percent. The elasticity has to come from somewhere else, it treats every buyer alike, and it has no place for what an
+          owner weighs each year: how old the vehicle is, what fuel costs now, how the economy looks next year.
+        </p>
+        <p>
+          The Auto Drive-or-Sell model states the owner&apos;s choices instead and values each one over the years ahead. Anderson
+          Economic Group consultants built the first sequential decision model of vehicle replacement in 2015. In 2019 the model
+          gained further state dimensions and a fifty-state report. In 2026 it gained buyer cohorts: seven representative buyers
+          with their own prices, enjoyment, mileage and discount rates, solved together and weighted into a market. Risk enters
+          through the transition probabilities, several kinds of information enter as states, and replacement timing is read off the
+          solved rule rather than assumed.
+        </p>
+        <p>
+          The cost is novelty and effort. The method is less familiar than an elasticity, its inputs need calibration, and a
+          deterministic rule on a coarse grid responds to small price changes in steps. The regulatory cost scenario puts the two
+          side by side: enter an elasticity there and compare its answer with the model&apos;s.
+        </p>
+      </section>
+
       <section aria-labelledby="states-title" className="max-w-3xl space-y-2 text-[15px] leading-relaxed text-slate-700">
         <SubHeading id="states-title">States and choices</SubHeading>
         <p>
@@ -135,12 +157,12 @@ export function MethodTab({ state, requestBody }: { state: SolveState; requestBo
         <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
           All values are illustrative and uncalibrated: they have not been fitted to observed holding periods or sales.{" "}
           <span className="font-semibold">Assumed</span> marks a value set in the assumptions panel for this demonstration;{" "}
-          <span className="font-semibold">Illustrative</span> marks an ADOS 2026 v1c default.{" "}
+          <span className="font-semibold">Illustrative</span> marks an ADOS 2026 default (the midsize cohort).{" "}
           {echoed
             ? "Values are the ones the engine reports it used for this run."
             : view
-              ? "The engine that answered this run does not report the values it used; the panel's values are shown with the ADOS 2026 v1c defaults for the rest."
-              : "No run has been answered yet; the panel's values are shown with the ADOS 2026 v1c defaults for the rest."}
+              ? "The engine that answered this run does not report the values it used; the panel's values are shown with the ADOS 2026 defaults for the rest."
+              : "No run has been answered yet; the panel's values are shown with the ADOS 2026 defaults for the rest."}
         </p>
         {/* Phones: one block per parameter. Wider screens and print: the table. */}
         <ul className="panel divide-y divide-slate-100 px-4 py-1 sm:hidden">

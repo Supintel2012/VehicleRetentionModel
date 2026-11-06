@@ -1,6 +1,6 @@
-import type { SolveFailureReason, SolveResponse } from "./types.ts";
+import type { MarketSolveResponse, SolveFailureReason, SolveResponse } from "./types.ts";
 import type { RateLimiter } from "./rate-limit.ts";
-import { parseSolveRequest, SolveInputError, type SolveParameters } from "./solve-input.ts";
+import { parseRequest, SolveInputError, type AnySolveParameters } from "./solve-input.ts";
 import { adaptToolResult } from "./solve-result.ts";
 import { classifySolveFailure, describeForLog, failureBody, FAILURES } from "./solve-errors.ts";
 
@@ -19,7 +19,7 @@ export const MAX_BODY_BYTES = 8_192;
 export interface RunModelCall {
   url: URL;
   apiKey: string;
-  arguments: { model_name: typeof MODEL_NAME; parameters: SolveParameters };
+  arguments: { model_name: typeof MODEL_NAME; parameters: AnySolveParameters };
   signal: AbortSignal;
 }
 
@@ -138,9 +138,9 @@ export function createSolveHandler(options: SolveHandlerOptions): (request: Requ
     }
     if (text === null) return inputError("The request is too large.", 413);
 
-    let parameters: SolveParameters;
+    let parameters: AnySolveParameters;
     try {
-      parameters = parseSolveRequest(JSON.parse(text));
+      parameters = parseRequest(JSON.parse(text));
     } catch (error) {
       return error instanceof SolveInputError
         ? errorResponse("invalid_input", { error })
@@ -167,7 +167,10 @@ export function createSolveHandler(options: SolveHandlerOptions): (request: Requ
         signal: AbortSignal.any([request.signal, AbortSignal.timeout(timeoutMs)]),
       });
       const { data, attribution, warnings } = adaptToolResult(result, parameters);
-      const body: SolveResponse = { status: "success", data, attribution, warnings };
+      const body: SolveResponse | MarketSolveResponse =
+        data.kind === "market"
+          ? { status: "success", data, attribution, warnings }
+          : { status: "success", data, attribution, warnings };
       return Response.json(body, { headers: { "Cache-Control": "no-store" } });
     } catch (error) {
       const reason = classifySolveFailure(error);

@@ -7,20 +7,23 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Supported Intelligence's base: white page, slate text, Plus Jakarta Sans with its ligatures on. */
 body {
-  background: #f8fafc;
+  background: #ffffff;
   color: #0f172a;
+  font-feature-settings: "rlig" 1, "calt" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 @layer components {
+  /* The site's card: 0.75rem corners, a hairline border and its soft shadow. */
   .panel {
-    @apply rounded-lg border border-slate-200 bg-white;
+    @apply rounded-md border border-slate-200 bg-white shadow-card;
   }
 
   .eyebrow {
-    @apply text-xs font-semibold uppercase tracking-wider text-slate-500;
+    @apply text-sm font-medium text-primary-700;
   }
 
   .btn {
@@ -29,14 +32,14 @@ body {
     @apply disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply border-accent-700 bg-accent-700 text-white hover:bg-accent-800;
+    @apply border-primary-700 bg-primary-700 text-white hover:border-primary-600 hover:bg-primary-600;
   }
   .btn-secondary {
     @apply border-slate-300 bg-white text-slate-800 hover:border-slate-400 hover:bg-slate-50;
   }
 
   .field-input {
-    @apply w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900;
+    @apply w-full rounded-sm border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900;
     @apply focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-200;
   }
   .field-input[aria-invalid="true"] {
@@ -63,7 +66,7 @@ body {
   }
 
   .link {
-    @apply font-medium text-accent-600 underline decoration-accent-200 underline-offset-2 hover:decoration-accent-600;
+    @apply font-medium text-accent-600 underline decoration-accent-200 underline-offset-2 hover:text-primary-700 hover:decoration-primary-500;
   }
 }
 
