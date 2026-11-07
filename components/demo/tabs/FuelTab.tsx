@@ -165,14 +165,24 @@ export function FuelTab({
           {noReduce && (
             <Notice tone="caution">
               <p className="font-semibold text-slate-900">No state reduces mileage at any fuel price on either grid.</p>
-              <p className="mt-1">
-                At a taper of {taperPct}% the enjoyment of each mile, about $4.00 for this owner, outweighs fuel at well under $0.50 a mile, so a
-                fuel rise alone never makes cutting miles the best choice. The taper is the one input that can: at {TAPER_TO_SHOW_REDUCE}%
-                reducing appears, first at the highest fuel prices.
-              </p>
-              <button type="button" className="btn btn-primary no-print mt-3" onClick={() => onSetTaper(TAPER_TO_SHOW_REDUCE)}>
-                Set the taper to {TAPER_TO_SHOW_REDUCE}% and solve again
-              </button>
+              {taperPct < TAPER_TO_SHOW_REDUCE ? (
+                <>
+                  <p className="mt-1">
+                    At a taper of {taperPct}% the enjoyment of each mile, about $4.00 for this owner, outweighs fuel at well under $0.50 a mile, so a
+                    fuel rise alone never makes cutting miles the best choice. The taper is the one input that can: at {TAPER_TO_SHOW_REDUCE}%
+                    reducing appears, first at the highest fuel prices.
+                  </p>
+                  <button type="button" className="btn btn-primary no-print mt-3" onClick={() => onSetTaper(TAPER_TO_SHOW_REDUCE)}>
+                    Set the taper to {TAPER_TO_SHOW_REDUCE}% and solve again
+                  </button>
+                </>
+              ) : (
+                <p className="mt-1">
+                  The taper is already {taperPct}%, at or past the {TAPER_TO_SHOW_REDUCE}% where reducing appears at the engine&apos;s other defaults, so
+                  another input on the panel is keeping it out: a higher standard or reduced mileage, or a lower fuel bill for this owner. Reset the
+                  panel, or raise the taper further, to see it.
+                </p>
+              )}
             </Notice>
           )}
           <figure className="panel min-w-0 p-4">

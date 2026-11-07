@@ -1,6 +1,7 @@
 import type { ActionName, SolveData } from "./types.ts";
 import { ACTIONS, stateIndex } from "./solve-result.ts";
 import { ENGINE_DEFAULT_FUEL, FUEL_SPAN, GRID_LIMITS } from "./solve-input.ts";
+import { buildRunBody, type Answers } from "./template.ts";
 
 /**
  * The fuel price scenario: the whole fuel-price grid shifted up by a chosen
@@ -48,6 +49,19 @@ export function fuelShockBody(
   body.FuelMax = max;
   body.cohorts = true;
   return { ok: true, body };
+}
+
+/**
+ * The scenario's request while the fuel screen is shown, or null. The request
+ * depends on every panel input, so it is solved only while the screen is
+ * open: kept live on the other screens it would cost a second, unseen solve
+ * on every panel change for the rest of the session. Coming back costs
+ * nothing while nothing has changed (the page remembers its answers).
+ */
+export function fuelRequest(answers: Answers, rise: number, fuelOpen: boolean): Record<string, unknown> | null {
+  if (!fuelOpen) return null;
+  const plan = fuelShockBody(buildRunBody(answers, 0), rise);
+  return plan.ok ? plan.body : null;
 }
 
 export interface ActionsAtFuel {

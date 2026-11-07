@@ -162,3 +162,15 @@
   coordinates below the fold hovers nothing and the tooltip "never appears". Also
   scope chart locators to the visible tab panel: hidden panels keep their charts in
   the DOM, so `.first()` may pick an invisible one.
+
+## 2026-11-06 — Fuel price scenario
+
+- **A request that depends on the panel is solved only while its screen is shown.** The
+  fuel scenario was gated on "opened once"; after that every panel change on any tab
+  cost a second, unseen solve for the rest of the session, against a 20-a-minute rate
+  limit. The market run can stay live because it ignores the panel; a request built
+  from `answers` cannot. Gate it on the tab, as `fallbackRequest` does, and show its
+  answer only when it is for the current request.
+- **An offered fix must change something.** The "set the taper to 35%" button was shown
+  whenever no state reduced, including with the taper already at 35% or more, where
+  clicking it did nothing. Offer a one-click remedy only when it would move an input.

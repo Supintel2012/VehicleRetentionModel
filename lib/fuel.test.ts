@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { actionsByFuel, compareFuel, fuelShockBody, seriesOverPrices, TAPER_TO_SHOW_REDUCE } from "./fuel.ts";
+import { actionsByFuel, compareFuel, fuelRequest, fuelShockBody, seriesOverPrices, TAPER_TO_SHOW_REDUCE } from "./fuel.ts";
 import { parseSolveRequest } from "./solve-input.ts";
 import { adaptSolveData } from "./solve-result.ts";
 import { buildSolveBody, defaultAnswers, VEHICLE_RETENTION_TEMPLATE } from "./template.ts";
@@ -48,6 +48,34 @@ test("the scenario body carries the owner profile onto a shifted grid and nothin
   assert.ok(!tooHigh.ok && /outside the range/.test(tooHigh.message));
   const negative = fuelShockBody(base, -0.5);
   assert.ok(!negative.ok);
+});
+
+test("the scenario is requested only while its screen is shown, and from the panel's values", () => {
+  const answers = defaultAnswers();
+  assert.equal(fuelRequest(answers, 2, false), null, "another tab");
+  const body = fuelRequest(answers, 2, true);
+  assert.ok(body);
+  assert.deepEqual(body, {
+    StdMiles: 15_000,
+    ReducedMiles: 12_000,
+    PriceNewCar: 43_000,
+    FixedCost: 2_500,
+    d: 0.05,
+    DecayFraction: 0.25,
+    projection_years: 10,
+    FuelMin: 6,
+    FuelMax: 9,
+    cohorts: true,
+  });
+  assert.equal(parseSolveRequest(body).FuelMax, 9, "the route accepts it");
+  // The panel's values travel with it; the lookup vehicle does not (its fuel price is off the shifted grid).
+  const moved = fuelRequest({ ...answers, decay_fraction: TAPER_TO_SHOW_REDUCE, std_miles: 14_000, fuel_price_now: 4 }, 0, true);
+  assert.ok(moved);
+  assert.equal(moved.DecayFraction, 0.35);
+  assert.equal(moved.StdMiles, 14_000);
+  assert.equal(moved.FuelMin, 4);
+  assert.equal("query_state" in moved, false);
+  assert.equal(fuelRequest(answers, 9, true), null, "a rise the route would refuse");
 });
 
 test("the panel's taper reaches the request as a fraction and the route bounds it", () => {

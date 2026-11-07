@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import clsx from "clsx";
 import { signedDollars } from "@/lib/format";
-import { fuelShockBody } from "@/lib/fuel";
+import { fuelRequest } from "@/lib/fuel";
 import { buildMarketBody, defaultMix, mixIsComplete, type MarketMix } from "@/lib/market";
 import { parseElasticity } from "@/lib/scenario";
 import { baselineRequest, baselineState, fallbackRequest, requestKey, solveStatus, type Answered } from "@/lib/solve-plan";
-import { buildSolveBody, defaultAnswers, VEHICLE_RETENTION_TEMPLATE, type Answers } from "@/lib/template";
+import { defaultAnswers, type Answers } from "@/lib/template";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { AssumptionsPanel, assumptionSummary } from "./AssumptionsPanel";
 import type { VehicleClassTag } from "@/lib/types";
@@ -146,18 +146,16 @@ export function DemoApp() {
   const onMix = useCallback((tag: VehicleClassTag, value: number) => setMix((m) => ({ ...m, [tag]: value })), []);
   const onResetMix = useCallback(() => setMix(defaultMix()), []);
 
-  // The fuel price scenario: the owner profile on a fuel-price grid shifted up, solved once the screen is opened.
+  // The fuel price scenario: the owner profile on a fuel-price grid shifted up, solved while the screen is shown
+  // (it depends on every panel input, so kept live elsewhere it would double the cost of each panel change).
   const [fuelRise, setFuelRise] = useState(DEFAULT_FUEL_RISE);
-  const [fuelOpened, setFuelOpened] = useState(false);
-  useEffect(() => {
-    if (tab === "fuel") setFuelOpened(true);
-  }, [tab]);
-  const fuelBody = useMemo(() => {
-    if (!fuelOpened) return null;
-    const plan = fuelShockBody({ ...buildSolveBody(VEHICLE_RETENTION_TEMPLATE, answers), projection_years: 10 }, fuelRise);
-    return plan.ok ? plan.body : null;
-  }, [fuelOpened, answers, fuelRise]);
-  const fuel = useLatestSolve(fuelBody);
+  const fuelBody = useMemo(() => fuelRequest(answers, fuelRise, tab === "fuel"), [answers, fuelRise, tab]);
+  const fuelRaw = useLatestSolve(fuelBody);
+  // Show the shifted-grid solve only when it answers the current request; otherwise it is still pending.
+  const fuel: SolveState = useMemo(() => {
+    const matches = fuelRaw.run !== null && fuelBody !== null && requestKey(fuelRaw.run.body) === requestKey(fuelBody);
+    return matches || fuelRaw.error ? fuelRaw : { ...fuelRaw, run: null, busy: true };
+  }, [fuelRaw, fuelBody]);
   const onSetTaper = useCallback((pct: number) => setAnswers((a) => ({ ...a, decay_fraction: pct })), []);
 
   // The engine that last answered decides whether a price change needs a baseline solve (see lib/solve-plan.ts).
